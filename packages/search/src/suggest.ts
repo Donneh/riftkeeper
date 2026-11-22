@@ -1,6 +1,6 @@
-import { CARD_TYPES, DOMAINS, RARITIES, SUPERTYPES, VARIANTS } from "@riftkeeper/cards/values";
+import { CARD_TYPES, DOMAINS, FORMATS, RARITIES, SUPERTYPES, VARIANTS } from "@riftkeeper/cards/values";
 import type { FilterField } from "./filter.ts";
-import { COLOR_ALIASES, FILTER_KEYWORDS, UNSUPPORTED_KEYWORDS } from "./keywords.ts";
+import { COLOR_ALIASES, FILTER_KEYWORDS, FORMAT_VALUES, IS_VALUES, UNSUPPORTED_KEYWORDS } from "./keywords.ts";
 import { SET_RELEASE_ORDER } from "./set-order.ts";
 import type { SourceSpan } from "./syntax.ts";
 
@@ -34,6 +34,9 @@ const FIELD_HELP: { readonly [F in FilterField]: { readonly label: string; reado
   supertype: { label: "Supertype", hint: null },
   rarity: { label: "Rarity", hint: null },
   variant: { label: "Variant", hint: null },
+  format: { label: "Legal in format", hint: "Format: cards not on its ban list today, such as f:standard." },
+  banned: { label: "Banned in format", hint: "Banned: cards on a format's ban list today, such as banned:2v2." },
+  is: { label: "Card property", hint: "is:errata finds cards whose text Riot changed after printing." },
   set: { label: "Set", hint: "Set: a set code or part of the set name, such as s:origins." },
   artist: { label: "Artist", hint: "Artist: part of the artist's name, such as a:kudos." },
   ability: {
@@ -52,6 +55,9 @@ const VALUES: { readonly [F in FilterField]?: readonly string[] } = {
   supertype: SUPERTYPES,
   rarity: RARITIES,
   variant: VARIANTS,
+  format: FORMAT_VALUES,
+  banned: FORMATS,
+  is: IS_VALUES,
   set: SET_RELEASE_ORDER.map((code) => code.toLowerCase()),
 };
 

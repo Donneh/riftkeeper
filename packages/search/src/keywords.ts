@@ -1,5 +1,9 @@
 import type { Domain } from "@riftkeeper/cards";
+import { FORMATS } from "@riftkeeper/cards/values";
 import type { FilterField } from "./filter.ts";
+
+export const FORMAT_VALUES = [...FORMATS, "sealed"] as const;
+export const IS_VALUES = ["errata"] as const;
 
 export const FILTER_KEYWORDS: { readonly [F in FilterField]: readonly [F, ...string[]] } = {
   cost: ["cost"],
@@ -13,6 +17,9 @@ export const FILTER_KEYWORDS: { readonly [F in FilterField]: readonly [F, ...str
   supertype: ["supertype"],
   rarity: ["rarity", "r"],
   variant: ["variant"],
+  format: ["format", "f", "legal"],
+  banned: ["banned"],
+  is: ["is"],
   set: ["set", "s"],
   artist: ["artist", "a"],
   ability: ["ability"],
@@ -21,7 +28,7 @@ export const FILTER_KEYWORDS: { readonly [F in FilterField]: readonly [F, ...str
   name: ["name"],
 };
 
-export const UNSUPPORTED_KEYWORDS: ReadonlySet<string> = new Set(["promo", "owned", "flavor", "legal"]);
+export const UNSUPPORTED_KEYWORDS: ReadonlySet<string> = new Set(["promo", "owned", "flavor"]);
 
 export const COLOR_ALIASES: ReadonlyMap<string, Domain> = new Map<string, Domain>([
   ["red", "fury"],

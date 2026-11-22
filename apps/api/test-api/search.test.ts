@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { type PricedCard, PricedCardSchema } from "@riftkeeper/cards/prices";
+import { RulesSnapshotSchema } from "@riftkeeper/cards/rules";
 import { z } from "zod";
 
 const baseUrl = process.env.BASE_URL;
@@ -117,6 +118,34 @@ describe("GET /search", () => {
         return Math.min(prices?.normal?.market ?? Infinity, prices?.foil?.market ?? Infinity);
       }),
     ).toEqual(amounts.slice(0, result.meta.pageSize));
+  });
+
+  test("each constructed format splits every card into legal and banned, and sealed has no ban list", async () => {
+    const totals = async (q: string) => (await search({ q })).meta.total;
+    const [all, standard, bannedStandard, duo, bannedDuo, sealed] = await Promise.all([
+      totals(""),
+      totals("f:standard"),
+      totals("banned:standard"),
+      totals("f:2v2"),
+      totals("banned:2v2"),
+      totals("f:sealed"),
+    ]);
+
+    expect(standard + bannedStandard).toBe(all);
+    expect(duo + bannedDuo).toBe(all);
+    expect(sealed).toBe(all);
+  });
+
+  test("banned: and is:errata match cards whose rules list a ban or errata", async () => {
+    const rulesOf = async (q: string) => {
+      const [card] = (await search({ q })).data;
+      if (!card) return null;
+      return z.object({ data: RulesSnapshotSchema }).parse((await get(`/cards/${card.id}/rules`)).body).data;
+    };
+    const [banned, errata] = await Promise.all([rulesOf("banned:2v2"), rulesOf("is:errata")]);
+
+    expect(banned === null || banned.bans.some((ban) => ban.format === "2v2")).toBe(true);
+    expect(errata === null || errata.errata.length > 0).toBe(true);
   });
 
   test("ignored parts of the query come back as warnings", async () => {

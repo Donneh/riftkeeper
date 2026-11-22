@@ -2,16 +2,20 @@ import { describe, expect, test } from "bun:test";
 import { type Card, CardIdSchema, type Domain, type Printing, PrintingIdSchema } from "@riftkeeper/cards";
 import { withPrices } from "@riftkeeper/cards/prices";
 import { parseCardSnapshot } from "@riftkeeper/cards/snapshot";
-import { makeCard, makePriceSnapshot, makePrinting } from "@riftkeeper/cards/testing";
+import { makeCard, makePriceSnapshot, makePrinting, makeRulesSnapshot } from "@riftkeeper/cards/testing";
 import snapshot from "../../../apps/api/data/cards.json";
 import type { SearchNode } from "./ast.ts";
 import { decompose } from "./decompose.ts";
 import type { ComparisonOperator, Filter, TextField } from "./filter.ts";
 import { parseQuery } from "./parser.ts";
 import { PAGE_SIZE, type SearchRequest } from "./search.ts";
-import { searchCards } from "./search-cards.ts";
+import { searchCards as searchWithContext } from "./search-cards.ts";
 
 const span = { start: 0, end: 0 };
+
+function searchCards(cards: readonly Card[], request: SearchRequest) {
+  return searchWithContext(cards, request, { rules: makeRulesSnapshot(), today: "2026-11-22" });
+}
 
 function filterNode(filter: Filter): SearchNode {
   return { kind: "filter", filter, keyword: filter.field, span, groupDepth: 0, negated: false };
@@ -738,6 +742,45 @@ describe("keyword, effect and exact-name queries", () => {
       { field: "keyword", label: "Keyword", expression: "k:shield", span: { start: 8, end: 16 }, editable: true },
       { field: "effect", label: "Effect", expression: "effect:draw", span: { start: 17, end: 28 }, editable: true },
     ]);
+  });
+});
+
+describe("format, ban and errata queries", () => {
+  const source = "https://playriftbound.com/en-us/news/announcements/bans";
+  const rules = makeRulesSnapshot({
+    sources: [{ url: source, title: "Ban List Update", publishedAt: "2026-11-13" }],
+    bans: [
+      { card: CardIdSchema.parse("both"), format: "standard", effective: "2026-11-23", source },
+      { card: CardIdSchema.parse("both"), format: "2v2", effective: "2026-09-18", source },
+      { card: CardIdSchema.parse("duo"), format: "2v2", effective: "2026-09-18", source },
+    ],
+    errata: [{ card: CardIdSchema.parse("duo"), previous: "Old text.", current: "New text.", source }],
+  });
+  const cards = ["both", "duo", "free"].map((id) => makeCard({ id, name: id }));
+
+  const ids = (query: string, today: string) => {
+    const { root, warnings } = parseQuery(query);
+    expect(warnings).toEqual([]);
+    return searchWithContext(cards, request(root), { rules, today }).cards.map((card) => String(card.id));
+  };
+
+  test("a ban counts from its effective date, not from its announcement", () => {
+    expect(ids("banned:standard", "2026-11-22")).toEqual([]);
+    expect(ids("f:standard", "2026-11-22")).toEqual(["both", "duo", "free"]);
+    expect(ids("banned:standard", "2026-11-23")).toEqual(["both"]);
+    expect(ids("f:standard", "2026-11-23")).toEqual(["duo", "free"]);
+  });
+
+  test("each format has its own ban list, and sealed has none", () => {
+    expect(ids("banned:2v2", "2026-11-22")).toEqual(["both", "duo"]);
+    expect(ids("legal:2v2", "2026-11-22")).toEqual(["free"]);
+    expect(ids("f:sealed", "2026-11-23")).toEqual(["both", "duo", "free"]);
+    expect(ids("-f:standard f:2v2", "2026-11-23")).toEqual([]);
+  });
+
+  test("is:errata matches cards with any errata", () => {
+    expect(ids("is:errata", "2026-11-22")).toEqual(["duo"]);
+    expect(ids("-is:errata banned:2v2", "2026-11-22")).toEqual(["both"]);
   });
 });
 

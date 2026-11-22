@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import { CardIdSchema } from "@riftkeeper/cards";
 import { withPrices } from "@riftkeeper/cards/prices";
 import {
   makeCard,
@@ -39,6 +40,25 @@ describe("GET /cards/random", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ data: { id: "card-80" } });
+  });
+
+  test("matches format, ban and errata keywords against the rules snapshot", async () => {
+    const source = "https://playriftbound.com/en-us/news/rules-and-releases/errata";
+    const rules = makeRulesSnapshot({
+      sources: [{ url: source, title: "Errata", publishedAt: "2026-10-09" }],
+      bans: [{ card: CardIdSchema.parse("card-3"), format: "2v2", effective: "2026-01-01", source }],
+      errata: [{ card: CardIdSchema.parse("card-7"), previous: "Old.", current: "New.", source }],
+    });
+    const ruled = createApp({ cards, prices, priceHistory: makePriceHistory(), rules });
+    const pick = async (q: string) => {
+      const response = await ruled.request(`/cards/random?${new URLSearchParams({ q })}`);
+      return ((await response.json()) as { data: { id: string } | null }).data?.id;
+    };
+
+    expect(await pick("banned:2v2")).toBe("card-3");
+    expect(await pick("is:errata")).toBe("card-7");
+    random = spyOn(Math, "random").mockReturnValue(0.999999);
+    expect(await pick("-f:2v2 or is:errata")).toBe("card-7");
   });
 
   test("weights cards equally, not their printings, and returns the full card", async () => {

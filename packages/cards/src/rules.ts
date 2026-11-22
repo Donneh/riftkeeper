@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { type CardId, CardIdSchema } from "./card.ts";
+import { FORMATS } from "./values.ts";
 
-export const FormatSchema = z.enum(["standard", "2v2"]);
+export const FormatSchema = z.enum(FORMATS);
 export type Format = z.infer<typeof FormatSchema>;
 
 export const RulesSourceSchema = z.object({

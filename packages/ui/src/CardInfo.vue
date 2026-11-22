@@ -54,7 +54,12 @@ function follow(event: MouseEvent, href: string) {
       <p v-if="card.textCaption" class="text-caption">{{ card.textCaption }}</p>
     </div>
 
-    <CardLegality v-if="card.legality" class="section" :rows="card.legality" />
+    <CardLegality
+      v-if="card.legality"
+      class="section"
+      :rows="card.legality"
+      @navigate="(href) => emit('navigate', href)"
+    />
 
     <div v-if="card.legendSearch" class="section">
       <a class="credit-link" :href="card.legendSearch.href" @click="follow($event, card.legendSearch.href)">{{

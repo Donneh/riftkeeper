@@ -3,6 +3,7 @@ import { createApp } from "../src/app.ts";
 import { cards } from "../src/cards/card-snapshot.ts";
 import { priceHistory, prices } from "../src/cards/price-snapshot.ts";
 import { rules } from "../src/cards/rules-snapshot.ts";
+import { utcToday } from "../src/search/search.routes.ts";
 
 interface BenchmarkCase {
   readonly name: string;
@@ -32,6 +33,9 @@ const CASES: readonly BenchmarkCase[] = [
   { name: "set", q: "s:origins", expectMatches: true },
   { name: "artist", q: "a:studio", expectMatches: true },
   { name: "card text", q: 'ability:"draw 1"', expectMatches: true },
+  { name: "format", q: "f:standard", expectMatches: true },
+  { name: "banned", q: "banned:standard", expectMatches: true },
+  { name: "errata", q: "is:errata", expectMatches: true },
   { name: "combined", q: "(c:fury or c:chaos) -type:spell cost:<=3 r:rare", expectMatches: true },
   { name: "sort name desc", q: "", sort: "name", direction: "desc", expectMatches: true },
   { name: "sort cost", q: "", sort: "cost", expectMatches: true },
@@ -66,7 +70,7 @@ for (const benchmark of CASES) {
 
   const runCore = () => {
     const { root } = parseQuery(benchmark.q);
-    const result = searchCards(cards, { root, ...request });
+    const result = searchCards(cards, { root, ...request }, { rules, today: utcToday() });
     checksum += result.cards.length + decompose(benchmark.q, root).filters.length;
     return result.total;
   };

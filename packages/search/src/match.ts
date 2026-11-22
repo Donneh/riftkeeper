@@ -1,10 +1,16 @@
 import type { Card, Printing } from "@riftkeeper/cards";
+import type { Format, RulesSnapshot } from "@riftkeeper/cards/rules";
 import type { SearchNode } from "./ast.ts";
 import type { ComparisonOperator, Filter, FilterField, FilterOf } from "./filter.ts";
 import { marketPrice } from "./price.ts";
 
+export interface SearchContext {
+  readonly rules: RulesSnapshot;
+  readonly today: string;
+}
+
 type FilterMatchers = {
-  [F in FilterField]: (filter: FilterOf<F>, card: Card, printing: Printing) => boolean;
+  [F in FilterField]: (filter: FilterOf<F>, card: Card, printing: Printing, context: SearchContext) => boolean;
 };
 
 function compare(actual: number | null, operator: ComparisonOperator, expected: number): boolean {
@@ -44,6 +50,10 @@ function hasKeyword(source: string | null, value: string): boolean {
   });
 }
 
+function isBanned(card: Card, format: Format, { rules, today }: SearchContext): boolean {
+  return rules.bans.some((ban) => ban.card === card.id && ban.format === format && ban.effective <= today);
+}
+
 const FILTER_MATCHERS: FilterMatchers = {
   cost: (filter, card) => compare(card.energyCost, filter.comparison.operator, filter.comparison.value),
   power: (filter, card) => compare(card.powerCost, filter.comparison.operator, filter.comparison.value),
@@ -59,6 +69,9 @@ const FILTER_MATCHERS: FilterMatchers = {
   supertype: (filter, card) => card.supertype === filter.value,
   rarity: (filter, _card, printing) => printing.rarity === filter.value,
   variant: (filter, _card, printing) => printing.variant === filter.value,
+  format: (filter, card, _printing, context) => filter.value === "sealed" || !isBanned(card, filter.value, context),
+  banned: (filter, card, _printing, context) => isBanned(card, filter.value, context),
+  is: (_filter, card, _printing, { rules }) => rules.errata.some((entry) => entry.card === card.id),
   tag: (filter, card) => hasTag(card, filter.text),
   set: (filter, _card, printing) =>
     equalsIgnoringCase(printing.set.code, filter.text) || containsIgnoringCase(printing.set.name, filter.text),
@@ -72,9 +85,14 @@ const FILTER_MATCHERS: FilterMatchers = {
     (card.subtitle !== null && equalsIgnoringCase(`${card.name}, ${card.subtitle}`, filter.text)),
 };
 
-function matchesFilter(filter: Filter, card: Card, printing: Printing): boolean {
-  const matcher = FILTER_MATCHERS[filter.field] as (filter: Filter, card: Card, printing: Printing) => boolean;
-  return matcher(filter, card, printing);
+function matchesFilter(filter: Filter, card: Card, printing: Printing, context: SearchContext): boolean {
+  const matcher = FILTER_MATCHERS[filter.field] as (
+    filter: Filter,
+    card: Card,
+    printing: Printing,
+    context: SearchContext,
+  ) => boolean;
+  return matcher(filter, card, printing, context);
 }
 
 function matchesText(value: string, card: Card): boolean {
@@ -82,17 +100,17 @@ function matchesText(value: string, card: Card): boolean {
   return containsIgnoringCase(displayName, value) || hasTag(card, value);
 }
 
-export function matchesNode(node: SearchNode, card: Card, printing: Printing): boolean {
+export function matchesNode(node: SearchNode, card: Card, printing: Printing, context: SearchContext): boolean {
   switch (node.kind) {
     case "and":
-      return node.children.every((child) => matchesNode(child, card, printing));
+      return node.children.every((child) => matchesNode(child, card, printing, context));
     case "or":
-      return node.children.some((child) => matchesNode(child, card, printing));
+      return node.children.some((child) => matchesNode(child, card, printing, context));
     case "not":
-      return !matchesNode(node.child, card, printing);
+      return !matchesNode(node.child, card, printing, context);
     case "text":
       return matchesText(node.value, card);
     case "filter":
-      return matchesFilter(node.filter, card, printing);
+      return matchesFilter(node.filter, card, printing, context);
   }
 }

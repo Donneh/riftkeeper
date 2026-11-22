@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/vue";
+import { fireEvent, render, screen, within } from "@testing-library/vue";
 import { describe, expect, test } from "vitest";
 import CardLegality from "./CardLegality.vue";
 import type { LegalityRow } from "./card-detail.ts";
@@ -10,6 +10,7 @@ const rows: LegalityRow[] = [
     format: "2v2 Constructed",
     status: "banned",
     label: "Banned",
+    banList: { label: "Ban list", href: "/?q=banned%3A2v2" },
     source: { label: "July Ban List Updates", href: announcement },
   },
   { format: "Sealed", status: "legal", label: "Legal", note: "No ban list" },
@@ -27,7 +28,17 @@ describe("CardLegality", () => {
       .getAllByRole("definition")
       .map((definition) => [...definition.children].map((part) => part.textContent));
     expect(terms).toEqual(["Standard", "2v2 Constructed", "Sealed"]);
-    expect(definitions).toEqual([["Legal"], ["Banned", "July Ban List Updates"], ["Legal", "No ban list"]]);
+    expect(definitions).toEqual([["Legal"], ["Banned", "Ban list", "July Ban List Updates"], ["Legal", "No ban list"]]);
     expect(within(region).getByRole("link", { name: "July Ban List Updates" }).getAttribute("href")).toBe(announcement);
+  });
+
+  test("the ban list link names its format and navigates in the app on a plain click only", async () => {
+    const { emitted } = render(CardLegality, { props: { rows } });
+    const link = screen.getByRole("link", { name: "2v2 Constructed ban list" });
+
+    expect(link.getAttribute("href")).toBe("/?q=banned%3A2v2");
+    await fireEvent.click(link, { ctrlKey: true });
+    await fireEvent.click(link);
+    expect(emitted("navigate")).toEqual([["/?q=banned%3A2v2"]]);
   });
 });

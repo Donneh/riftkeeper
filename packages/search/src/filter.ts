@@ -1,4 +1,5 @@
 import type { CardType, Domain, Rarity, Supertype, Variant } from "@riftkeeper/cards";
+import type { Format } from "@riftkeeper/cards/rules";
 
 export type ComparisonOperator = "=" | "!=" | "<" | "<=" | ">" | ">=";
 
@@ -23,6 +24,9 @@ export type Filter =
   | { readonly field: "supertype"; readonly value: Supertype }
   | { readonly field: "rarity"; readonly value: Rarity }
   | { readonly field: "variant"; readonly value: Variant }
+  | { readonly field: "format"; readonly value: Format | "sealed" }
+  | { readonly field: "banned"; readonly value: Format }
+  | { readonly field: "is"; readonly value: "errata" }
   | { readonly field: TextField; readonly text: string };
 
 export type FilterField = Filter["field"];

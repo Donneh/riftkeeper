@@ -37,9 +37,9 @@ export function createApp({
     .get("/health", (c) =>
       c.json({ data: { status: "ok", cards: cards.length, version: c.env?.CF_VERSION_METADATA?.id ?? null } }, 200),
     )
-    .route("/cards/random", createRandomRoutes({ cards: pricedCards }))
+    .route("/cards/random", createRandomRoutes({ cards: pricedCards, rules }))
     .route("/cards", createCardsRoutes({ cards: pricedCards, priceHistory, rules }))
-    .route("/search", createSearchRoutes({ cards: pricedCards }))
+    .route("/search", createSearchRoutes({ cards: pricedCards, rules }))
     .notFound((c) =>
       c.json(errorBody({ code: "not_found", message: `No route for ${c.req.method} ${c.req.path}` }), 404),
     )

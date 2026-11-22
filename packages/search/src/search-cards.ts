@@ -1,17 +1,16 @@
 import type { Card } from "@riftkeeper/cards";
-import { matchesNode } from "./match.ts";
+import { matchesNode, type SearchContext } from "./match.ts";
 import { PAGE_SIZE, type SearchPage, type SearchRequest } from "./search.ts";
 import { sortCards } from "./sort.ts";
 
-function reduceToMatchingPrintings(card: Card, request: SearchRequest): Card | null {
-  const { root } = request;
+function reduceToMatchingPrintings(card: Card, root: SearchRequest["root"], context: SearchContext): Card | null {
   if (root === null) return card;
-  const printings = card.printings.filter((printing) => matchesNode(root, card, printing));
+  const printings = card.printings.filter((printing) => matchesNode(root, card, printing, context));
   return printings.length === 0 ? null : { ...card, printings };
 }
 
-export function searchCards(cards: readonly Card[], request: SearchRequest): SearchPage {
-  const matched = cards.flatMap((card) => reduceToMatchingPrintings(card, request) ?? []);
+export function searchCards(cards: readonly Card[], request: SearchRequest, context: SearchContext): SearchPage {
+  const matched = cards.flatMap((card) => reduceToMatchingPrintings(card, request.root, context) ?? []);
   const entries =
     request.view === "printings"
       ? matched.flatMap((card) => card.printings.map((printing) => ({ ...card, printings: [printing] })))

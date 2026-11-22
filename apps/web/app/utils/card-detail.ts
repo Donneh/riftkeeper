@@ -219,6 +219,8 @@ function sourceLinks(rules: RulesSnapshot): Map<string, { label: string; href: s
   );
 }
 
+const banList = (format: Format) => ({ label: "Ban list", href: searchHref(`banned:${format}`) });
+
 export function legality(rules: RulesSnapshot, today: string): LegalityRow[] {
   const sources = sourceLinks(rules);
   const constructed = FORMATS.map(({ format, label }): LegalityRow => {
@@ -226,7 +228,7 @@ export function legality(rules: RulesSnapshot, today: string): LegalityRow[] {
     if (ban === undefined) return { format: label, status: "legal", label: "Legal" };
     const source = { label: sources.get(ban.source)?.label ?? "Riot announcement", href: ban.source };
     return ban.effective <= today
-      ? { format: label, status: "banned", label: "Banned", source }
+      ? { format: label, status: "banned", label: "Banned", banList: banList(format), source }
       : { format: label, status: "upcoming", label: `Banned ${DAY_DATE.format(Date.parse(ban.effective))}`, source };
   });
   return [...constructed, { format: "Sealed", status: "legal", label: "Legal", note: "No ban list" }];

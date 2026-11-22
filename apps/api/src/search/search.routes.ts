@@ -7,6 +7,7 @@ import {
   SupertypeSchema,
   VariantSchema,
 } from "@riftkeeper/cards";
+import type { RulesSnapshot } from "@riftkeeper/cards/rules";
 import {
   decompose,
   parseQuery,
@@ -44,7 +45,11 @@ function searchOptions(cards: readonly Card[]) {
   };
 }
 
-export function createSearchRoutes({ cards }: { cards: readonly Card[] }) {
+export function utcToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function createSearchRoutes({ cards, rules }: { cards: readonly Card[]; rules: RulesSnapshot }) {
   const options = searchOptions(cards);
 
   return new Hono()
@@ -59,7 +64,7 @@ export function createSearchRoutes({ cards }: { cards: readonly Card[] }) {
       (c) => {
         const { q, sort, direction, page, view } = c.req.valid("query");
         const { root, warnings } = parseQuery(q);
-        const result = searchCards(cards, { root, sort, direction, page, view });
+        const result = searchCards(cards, { root, sort, direction, page, view }, { rules, today: utcToday() });
 
         return c.json(
           {
