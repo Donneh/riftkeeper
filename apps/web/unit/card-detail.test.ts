@@ -245,7 +245,7 @@ describe("legality", () => {
     ],
   });
 
-  test("dates a ban that is announced but not in force yet, and links each ban to Riot's announcement", () => {
+  test("dates a ban that is announced but not in force yet, links each ban to Riot's announcement and a ban in force to its ban list", () => {
     expect(legality(rules, "2026-11-22")).toEqual([
       {
         format: "Standard",
@@ -257,6 +257,7 @@ describe("legality", () => {
         format: "2v2 Constructed",
         status: "banned",
         label: "Banned",
+        banList: { label: "Ban list", href: "/?q=banned%3A2v2" },
         source: { label: "July Ban List Updates", href: july },
       },
       { format: "Sealed", status: "legal", label: "Legal", note: "No ban list" },

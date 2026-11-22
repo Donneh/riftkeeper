@@ -1,14 +1,15 @@
 import { zValidator } from "@hono/zod-validator";
 import type { Card } from "@riftkeeper/cards";
+import type { RulesSnapshot } from "@riftkeeper/cards/rules";
 import { matchesNode, parseQuery } from "@riftkeeper/search";
 import { Hono } from "hono";
 import { z } from "zod";
 import { errorBody } from "../http/errors.ts";
-import { MAX_QUERY_LENGTH, MAX_WARNINGS } from "../search/search.routes.ts";
+import { MAX_QUERY_LENGTH, MAX_WARNINGS, utcToday } from "../search/search.routes.ts";
 
 const RandomParamsSchema = z.object({ q: z.string().max(MAX_QUERY_LENGTH).default("") });
 
-export function createRandomRoutes({ cards }: { cards: readonly Card[] }) {
+export function createRandomRoutes({ cards, rules }: { cards: readonly Card[]; rules: RulesSnapshot }) {
   return new Hono().get(
     "/",
     zValidator("query", RandomParamsSchema, (result, c) => {
@@ -19,10 +20,11 @@ export function createRandomRoutes({ cards }: { cards: readonly Card[] }) {
     (c) => {
       c.header("Cache-Control", "no-store");
       const { root, warnings } = parseQuery(c.req.valid("query").q);
+      const context = { rules, today: utcToday() };
       const matches =
         root === null
           ? cards
-          : cards.filter((card) => card.printings.some((printing) => matchesNode(root, card, printing)));
+          : cards.filter((card) => card.printings.some((printing) => matchesNode(root, card, printing, context)));
       const card = matches[Math.floor(Math.random() * matches.length)] ?? null;
       return c.json({ data: card, warnings: warnings.slice(0, MAX_WARNINGS) }, 200);
     },

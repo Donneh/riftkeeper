@@ -217,7 +217,7 @@ test("a card shows its legality, its current text and its rules notes", async ({
   const legality = page.getByRole("region", { name: "Legality" });
   await expect(legality.getByRole("definition")).toHaveText([
     /^Banned Mar 1Test Ban List Updates$/,
-    /^BannedTest Ban List Updates$/,
+    /^BannedBan listTest Ban List Updates$/,
     /^LegalNo ban list$/,
   ]);
   await expect(legality.getByRole("term")).toHaveText(["Standard", "2v2 Constructed", "Sealed"]);
@@ -237,6 +237,13 @@ test("a card shows its legality, its current text and its rules notes", async ({
     "Added to the 2v2 Constructed ban list, effective Jan 2, 2026. Added to the Standard ban list, effective Mar 1, 2999.",
   );
   await expect(notes.nth(2).getByRole("link", { name: "Test Ban List Updates" })).toHaveAttribute("href", announcement);
+
+  await expect(legality.getByRole("link", { name: "Standard ban list" })).toHaveCount(0);
+  const response = await request.get(`${apiBase}/search`, { params: { q: "banned:2v2", view: "printings" } });
+  const banned = (await response.json()) as ApiSearch;
+  await legality.getByRole("link", { name: "2v2 Constructed ban list" }).click();
+  await expect(page.getByRole("searchbox", { name: "Search cards" })).toHaveValue("banned:2v2");
+  await expect(tiles(page)).toHaveCount(Math.min(banned.meta.total, banned.meta.pageSize));
 });
 
 test("a legend links to cards within its domains", async ({ page, request }) => {

@@ -1,8 +1,17 @@
 <script setup lang="ts">
 import { useId } from "vue";
 import type { LegalityRow } from "./card-detail.ts";
+import { isPlainLeftClick } from "./link-click.ts";
 
 defineProps<{ rows: readonly LegalityRow[] }>();
+
+const emit = defineEmits<{ navigate: [href: string] }>();
+
+function follow(event: MouseEvent, href: string) {
+  if (!isPlainLeftClick(event)) return;
+  event.preventDefault();
+  emit("navigate", href);
+}
 
 const headingId = useId();
 </script>
@@ -16,7 +25,15 @@ const headingId = useId();
         <dd class="verdict">
           <span class="status" :data-status="row.status">{{ row.label }}</span>
           <span v-if="row.note" class="note">{{ row.note }}</span>
-          <a v-if="row.source" class="source" :href="row.source.href" rel="noopener">{{ row.source.label }}</a>
+          <a
+            v-if="row.banList"
+            class="link"
+            :href="row.banList.href"
+            :aria-label="`${row.format} ban list`"
+            @click="follow($event, row.banList.href)"
+            >{{ row.banList.label }}</a
+          >
+          <a v-if="row.source" class="link" :href="row.source.href" rel="noopener">{{ row.source.label }}</a>
         </dd>
       </div>
     </dl>
@@ -85,12 +102,12 @@ const headingId = useId();
 }
 
 .note,
-.source {
+.link {
   color: var(--rk-color-text-muted);
   font-size: var(--rk-font-size-sm);
 }
 
-.source {
+.link {
   display: inline-flex;
   align-items: center;
   min-height: var(--rk-control-height-sm);
@@ -101,13 +118,13 @@ const headingId = useId();
 }
 
 @media (hover: hover) {
-  .source:hover {
+  .link:hover {
     color: var(--rk-color-text);
     text-decoration-color: var(--rk-color-domain-strong);
   }
 }
 
-.source:focus-visible {
+.link:focus-visible {
   outline: var(--rk-focus-width) solid var(--rk-color-accent);
   outline-offset: 2px;
   border-radius: var(--rk-radius-sm);

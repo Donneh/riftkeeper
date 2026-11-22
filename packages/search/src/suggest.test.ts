@@ -25,6 +25,9 @@ describe("keywords", () => {
       "supertype:",
       "rarity:",
       "variant:",
+      "format:",
+      "banned:",
+      "is:",
       "set:",
       "artist:",
       "ability:",
@@ -48,7 +51,7 @@ describe("keywords", () => {
 
   test("an unknown keyword is explained", () => {
     expect(atEnd("foo:1").hint).toBe('"foo" is not a filter. Remove it or pick one of the filters below.');
-    expect(atEnd("legal:true").hint).toBe('"legal" is not supported yet.');
+    expect(atEnd("flavor:true").hint).toBe('"flavor" is not supported yet.');
   });
 
   test("completes keyword, effect and exact-name filters and explains their values", () => {
@@ -144,6 +147,9 @@ test("every suggested completion parses without warnings", () => {
     "id:fury,",
     "s:",
     "t:unit",
+    "f:",
+    "banned:",
+    "is:",
   ]) {
     for (const [index] of suggest(query, query.length).suggestions.entries()) {
       const applied = apply(query, query.length, index);

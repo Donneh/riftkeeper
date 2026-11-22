@@ -66,6 +66,7 @@ export interface LegalityRow {
   readonly status: LegalityStatus;
   readonly label: string;
   readonly note?: string;
+  readonly banList?: CardLink;
   readonly source?: CardLink;
 }
 

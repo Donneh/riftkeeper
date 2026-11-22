@@ -165,6 +165,11 @@ describe("enum filters", () => {
     ['variant:"alt art"', { field: "variant", value: "alt-art" }],
     ["variant:altart", { field: "variant", value: "alt-art" }],
     ["variant:Signature", { field: "variant", value: "signed" }],
+    ["f:Standard", { field: "format", value: "standard" }],
+    ["format:2v2", { field: "format", value: "2v2" }],
+    ["legal:sealed", { field: "format", value: "sealed" }],
+    ["banned:2V2", { field: "banned", value: "2v2" }],
+    ["is:errata", { field: "is", value: "errata" }],
   ])("%s parses to %o", (query, filter) => {
     expect(filterOf(query)).toEqual(filter);
   });
@@ -186,6 +191,12 @@ describe("enum filters", () => {
       "variant:foil",
       'Invalid value for "variant": "foil" is not a variant. Use one of: standard, alt-art, signed, special, token, rune.',
     ],
+    ["f:modern", 'Invalid value for "f": "modern" is not a format. Use one of: standard, 2v2, sealed.'],
+    [
+      "banned:sealed",
+      'Invalid value for "banned": "sealed" is not a format with a ban list. Use one of: standard, 2v2.',
+    ],
+    ["is:banned", 'Invalid value for "is": "banned" is not a card property. Use one of: errata.'],
   ])("rejects %s", (query, message) => {
     expect(rejection(query)).toEqual([message]);
   });
@@ -257,7 +268,7 @@ describe("keywords", () => {
     expect(parseQuery("C:fury").root).toMatchObject({ kind: "filter", keyword: "c" });
   });
 
-  test.each(["promo", "owned", "flavor", "legal"])("%s is not supported yet", (keyword) => {
+  test.each(["promo", "owned", "flavor"])("%s is not supported yet", (keyword) => {
     expect(rejection(`${keyword.toUpperCase()}:true`)).toEqual([`"${keyword}" is not supported yet and was ignored.`]);
   });
 

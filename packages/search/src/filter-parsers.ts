@@ -7,8 +7,9 @@ import {
   type Variant,
   VariantSchema,
 } from "@riftkeeper/cards";
+import { FORMATS } from "@riftkeeper/cards/values";
 import type { ComparisonOperator, Filter, FilterField, NumericField, TextField } from "./filter.ts";
-import { COLOR_ALIASES, FILTER_KEYWORDS, UNSUPPORTED_KEYWORDS } from "./keywords.ts";
+import { COLOR_ALIASES, FILTER_KEYWORDS, FORMAT_VALUES, IS_VALUES, UNSUPPORTED_KEYWORDS } from "./keywords.ts";
 
 export type Parsed<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
 
@@ -60,17 +61,20 @@ function oneOf<V extends string>(
   return match === undefined ? invalid(`"${value}" is not a ${noun}. Use one of: ${options.join(", ")}.`) : ok(match);
 }
 
-function enumeration<F extends "type" | "supertype" | "rarity" | "variant", V extends string>(
+function enumeration<
+  F extends "type" | "supertype" | "rarity" | "variant" | "format" | "banned" | "is",
+  V extends string,
+>(
   field: F,
   options: readonly V[],
-  aliases?: ReadonlyMap<string, V>,
+  { aliases, noun = field }: { aliases?: ReadonlyMap<string, V>; noun?: string } = {},
 ): (value: string) => Parsed<{ readonly field: F; readonly value: V }> {
   return (value) => {
     if (value === "") {
       return invalid(`${capitalize(field)} value cannot be empty.`);
     }
 
-    const parsed = oneOf(field, options, value, aliases);
+    const parsed = oneOf(noun, options, value, aliases);
     return parsed.ok ? ok({ field, value: parsed.value }) : parsed;
   };
 }
@@ -131,7 +135,10 @@ const FILTERS: { readonly [F in FilterField]: FilterParser } = {
   type: enumeration("type", CardTypeSchema.options),
   supertype: enumeration("supertype", SupertypeSchema.options),
   rarity: enumeration("rarity", RaritySchema.options),
-  variant: enumeration("variant", VariantSchema.options, VARIANT_ALIASES),
+  variant: enumeration("variant", VariantSchema.options, { aliases: VARIANT_ALIASES }),
+  format: enumeration("format", FORMAT_VALUES),
+  banned: enumeration("banned", FORMATS, { noun: "format with a ban list" }),
+  is: enumeration("is", IS_VALUES, { noun: "card property" }),
   set: text("set"),
   artist: text("artist"),
   ability: text("ability"),
