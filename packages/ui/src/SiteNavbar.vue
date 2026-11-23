@@ -313,7 +313,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", focusOnSlash));
   align-items: center;
   min-height: var(--rk-control-height-sm);
   padding: 0 var(--rk-space-3);
-  border-radius: 999px;
+  border-radius: var(--rk-radius-md);
   color: var(--rk-color-text-muted);
   font: var(--rk-font-weight-medium) var(--rk-font-size-sm) var(--rk-font-family);
   text-decoration: none;
