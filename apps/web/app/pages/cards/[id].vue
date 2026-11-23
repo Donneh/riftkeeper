@@ -26,7 +26,7 @@ const router = useRouter();
 const { apiBase } = useRuntimeConfig().public;
 const theme = useTheme();
 
-const { links: navLinks, query: navQuery, navigate, search } = useSiteNavigation();
+const { links: navLinks, query: navQuery, caret: navCaret, suggestions: navSuggestions, navigate, search } = useSiteNavigation();
 
 const cardId = computed(() => String(route.params.id));
 
@@ -114,6 +114,9 @@ function choosePrinting(id: string) {
         v-model="navQuery"
         v-model:theme="theme"
         :links="navLinks"
+        :suggestions="navSuggestions.suggestions"
+        :hint="navSuggestions.hint"
+        @caret="navCaret = $event"
         @search="search"
         @navigate="navigate"
       />

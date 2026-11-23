@@ -187,6 +187,32 @@ test("a card page opens directly, survives a reload and fits a phone", async ({ 
   expect(new URL(page.url()).pathname).toBe("/");
 });
 
+test("the navbar search on a card page suggests and completes filters like the home search", async ({
+  page,
+  request,
+  isMobile,
+}) => {
+  const card = await cardWithPrintings(request, 1);
+  await page.goto(`/cards/${card.id}`);
+  await expect(page.getByRole("heading", { level: 1, name: card.name, exact: true })).toBeVisible();
+  const searchBox = page.getByRole("searchbox", { name: "Search cards" });
+  const suggestions = page.getByRole("listbox", { name: "Search cards suggestions" });
+
+  if (isMobile) await page.getByRole("button", { name: "Search cards" }).click();
+  else await searchBox.click();
+  await expect(suggestions.getByRole("option", { name: /^type:/ })).toBeVisible();
+
+  await searchBox.pressSequentially("t:spell");
+  await expect(page.getByText('t: searches tags, and "spell" is a card type. Use type:spell instead.')).toBeVisible();
+  await searchBox.press("Tab");
+  await expect(searchBox).toHaveValue("type:spell ");
+  await expect(searchBox).toBeFocused();
+
+  await searchBox.press("Enter");
+  await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("type:spell");
+  await expect(page.getByRole("searchbox", { name: "Search cards" })).toHaveValue("type:spell");
+});
+
 test("a card shows its legality, its current text and its rules notes", async ({ page, request }) => {
   const card = await cardWithPrintings(request, 1);
   const announcement = "https://playriftbound.com/en-us/news/announcements/test-ban-list-updates";

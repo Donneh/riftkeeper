@@ -8,7 +8,7 @@ import { RIOT_NOTICE } from "~/utils/riot-notice";
 const route = useRoute();
 const theme = useTheme();
 const { apiBase } = useRuntimeConfig().public;
-const { links: navLinks, query: navQuery, navigate, search } = useSiteNavigation("/random");
+const { links: navLinks, query: navQuery, caret: navCaret, suggestions: navSuggestions, navigate, search } = useSiteNavigation("/random");
 const query = computed(() => (typeof route.query.q === "string" ? route.query.q : ""));
 const { data: outcome, status, refresh } = useLazyAsyncData(
   () => `random:${query.value}`,
@@ -34,7 +34,16 @@ useHead(() => ({ title: `${title.value} · Riftkeeper` }));
 <template>
   <AppShell :title="title">
     <template #header>
-      <SiteNavbar v-model="navQuery" v-model:theme="theme" :links="navLinks" @search="search" @navigate="navigate" />
+      <SiteNavbar
+        v-model="navQuery"
+        v-model:theme="theme"
+        :links="navLinks"
+        :suggestions="navSuggestions.suggestions"
+        :hint="navSuggestions.hint"
+        @caret="navCaret = $event"
+        @search="search"
+        @navigate="navigate"
+      />
     </template>
     <BackLink variant="button" href="/" label="Back to search" @navigate="navigate" />
     <StatusMessage v-if="status === 'pending' || !outcome || outcome.kind === 'card'" kind="loading" :title="title" />
