@@ -2,11 +2,27 @@ import userEvent from "@testing-library/user-event";
 import { fireEvent, render, screen } from "@testing-library/vue";
 import { describe, expect, test } from "vitest";
 import { defineComponent, h, ref } from "vue";
+import type { QuerySuggestion } from "./query-suggestion.ts";
 import SiteNavbar from "./SiteNavbar.vue";
 import type { ThemePreference } from "./theme.ts";
 
+function rarities(query: string, caret: number): { suggestions: QuerySuggestion[]; hint: string | null } {
+  const start = query.lastIndexOf("r:", caret);
+  if (start === -1 || query.slice(start, caret).includes(" ")) return { suggestions: [], hint: null };
+  return {
+    suggestions: ["rare", "epic"].map((value) => ({
+      label: value,
+      detail: null,
+      text: `${value} `,
+      span: { start: start + 2, end: caret },
+    })),
+    hint: "Rarity of the printing.",
+  };
+}
+
 function renderNavbar(initialQuery = "") {
   const query = ref(initialQuery);
+  const caret = ref(initialQuery.length);
   const theme = ref<ThemePreference>("system");
   const searches: string[] = [];
   const navigations: string[] = [];
@@ -16,6 +32,10 @@ function renderNavbar(initialQuery = "") {
         h("input", { "aria-label": "Other field" }),
         h(SiteNavbar, {
           links: [{ label: "Cards", href: "/", current: true }],
+          ...rarities(query.value, caret.value),
+          onCaret: (position: number) => {
+            caret.value = position;
+          },
           modelValue: query.value,
           "onUpdate:modelValue": (value: string) => {
             query.value = value;
@@ -54,6 +74,22 @@ describe("SiteNavbar", () => {
 
     expect(query.value).toBe("  c:fury ");
     expect(searches).toEqual(["c:fury"]);
+  });
+
+  test("suggests values as the reader types and Tab completes the one under the caret", async () => {
+    const { query, searches } = renderNavbar();
+
+    await userEvent.type(searchField(), "cost:2 r:");
+    expect(screen.getByText("Rarity of the printing.")).toBeTruthy();
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}{Tab}");
+
+    expect(query.value).toBe("cost:2 r:epic ");
+    expect(document.activeElement).toBe(searchField());
+    expect(searches).toEqual([]);
+
+    await userEvent.keyboard("{Enter}");
+    expect(searches).toEqual(["cost:2 r:epic"]);
+    expect(screen.queryByRole("listbox")).toBeNull();
   });
 
   test("reports plain clicks on the brand and links and leaves modified clicks to the browser", async () => {
@@ -100,6 +136,22 @@ describe("SiteNavbar", () => {
     await userEvent.click(screen.getByRole("button", { name: "Search cards" }));
     expect(header.classList.contains("searching")).toBe(true);
     expect(document.activeElement).toBe(searchField());
+
+    await userEvent.keyboard("{Escape}");
+    expect(header.classList.contains("searching")).toBe(false);
+  });
+
+  test("Escape closes open suggestions before it closes the phone search", async () => {
+    renderNavbar();
+    const header = screen.getByRole("banner");
+
+    await userEvent.click(screen.getByRole("button", { name: "Search cards" }));
+    await userEvent.keyboard("r:");
+    expect(screen.getByRole("listbox", { name: "Search cards suggestions" })).toBeTruthy();
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(header.classList.contains("searching")).toBe(true);
 
     await userEvent.keyboard("{Escape}");
     expect(header.classList.contains("searching")).toBe(false);

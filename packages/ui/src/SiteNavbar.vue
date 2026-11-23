@@ -2,6 +2,9 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
 import { isPlainLeftClick } from "./link-click.ts";
 import type { NavLink } from "./nav-link.ts";
+import QuerySuggestionList from "./QuerySuggestionList.vue";
+import type { QuerySuggestion } from "./query-suggestion.ts";
+import { useQuerySuggestions } from "./query-suggestions.ts";
 import ThemeButton from "./ThemeButton.vue";
 import type { ThemePreference } from "./theme.ts";
 
@@ -13,6 +16,8 @@ const props = withDefaults(
     label?: string;
     placeholder?: string;
     searchable?: boolean;
+    suggestions?: readonly QuerySuggestion[];
+    hint?: string | null;
   }>(),
   {
     links: () => [],
@@ -21,16 +26,20 @@ const props = withDefaults(
     label: "Search cards",
     placeholder: "Search cards…",
     searchable: true,
+    suggestions: () => [],
+    hint: null,
   },
 );
 
 const query = defineModel<string>({ default: "" });
 const theme = defineModel<ThemePreference>("theme", { required: true });
-const emit = defineEmits<{ search: [query: string]; navigate: [href: string] }>();
+const emit = defineEmits<{ search: [query: string]; navigate: [href: string]; caret: [position: number] }>();
 
 const form = useTemplateRef<HTMLFormElement>("form");
 const input = useTemplateRef<HTMLInputElement>("input");
 const searching = ref(false);
+const suggesting = useQuerySuggestions(query, input, props, (position) => emit("caret", position));
+const { open, active, inputAttrs } = suggesting;
 
 const TYPING_TARGETS = "input, textarea, select, [contenteditable]:not([contenteditable='false'])";
 
@@ -41,6 +50,7 @@ function follow(event: MouseEvent, href: string) {
 }
 
 function submit() {
+  suggesting.dismiss();
   emit("search", query.value.trim());
 }
 
@@ -58,9 +68,12 @@ function closeWhenFocusLeaves(event: FocusEvent) {
   if (!form.value?.contains(event.relatedTarget as Node | null)) closeSearch();
 }
 
-function cancelSearch() {
-  closeSearch();
-  input.value?.blur();
+function keydown(event: KeyboardEvent) {
+  suggesting.keydown(event);
+  if (event.key === "Escape" && !event.defaultPrevented) {
+    closeSearch();
+    input.value?.blur();
+  }
 }
 
 function focusOnSlash(event: KeyboardEvent) {
@@ -103,9 +116,24 @@ onBeforeUnmount(() => window.removeEventListener("keydown", focusOnSlash));
           autocomplete="off"
           autocapitalize="off"
           spellcheck="false"
-          @keydown.escape="cancelSearch"
+          v-bind="inputAttrs"
+          @input="suggesting.typed"
+          @click="suggesting.reportCaret"
+          @keyup="suggesting.reportCaret"
+          @keydown="keydown"
+          @focus="suggesting.focus"
+          @blur="suggesting.blur"
         />
         <kbd class="key" aria-hidden="true">/</kbd>
+        <QuerySuggestionList
+          v-if="open"
+          :id="suggesting.id"
+          :label="label"
+          :suggestions="suggestions"
+          :hint="hint"
+          :active="active"
+          @apply="suggesting.apply"
+        />
       </form>
       <button v-if="searchable" class="open-search" type="button" :aria-label="label" @click="openSearch">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -165,6 +193,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", focusOnSlash));
 }
 
 .search {
+  position: relative;
   display: flex;
   flex: 1;
   gap: var(--rk-space-2);
