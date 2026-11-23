@@ -155,9 +155,10 @@ resource "cloudflare_worker_version" "web" {
       name = local.web_wrangler_config.assets.binding
     },
     {
-      type    = "service"
-      name    = local.web_wrangler_config.services[0].binding
-      service = cloudflare_worker.api.name
+      type        = "service"
+      name        = local.web_wrangler_config.services[0].binding
+      service     = cloudflare_worker.api.name
+      environment = "production"
     },
   ]
 
