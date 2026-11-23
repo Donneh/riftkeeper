@@ -52,6 +52,7 @@ const headingId = useId();
 .printings {
   display: grid;
   gap: var(--rk-space-3);
+  container-type: inline-size;
 }
 
 .heading {
@@ -161,5 +162,23 @@ const headingId = useId();
 .code {
   color: var(--rk-color-text-muted);
   font: var(--rk-font-size-xs) var(--rk-font-family-mono);
+}
+
+@container (max-width: 20rem) {
+  .printing {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .details {
+    white-space: normal;
+  }
+
+  .end {
+    display: flex;
+    flex-wrap: wrap;
+    grid-column: 2;
+    gap: 0 var(--rk-space-3);
+    align-items: baseline;
+  }
 }
 </style>

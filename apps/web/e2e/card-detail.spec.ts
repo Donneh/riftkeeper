@@ -215,12 +215,13 @@ test("a card shows its legality, its current text and its rules notes", async ({
   await page.goto(`/cards/${card.id}`);
 
   const legality = page.getByRole("region", { name: "Legality" });
-  await expect(legality.getByRole("definition")).toHaveText([
-    /^Banned Mar 1Test Ban List Updates$/,
-    /^BannedBan listTest Ban List Updates$/,
-    /^LegalNo ban list$/,
-  ]);
+  await expect(legality.getByRole("definition")).toHaveText(["Banned Mar 1", "Banned", "Legal"]);
   await expect(legality.getByRole("term")).toHaveText(["Standard", "2v2 Constructed", "Sealed"]);
+  await expect(legality.getByRole("listitem")).toHaveText([
+    /^Standard:\s*Test Ban List Updates$/,
+    /^2v2 Constructed:\s*Ban list\s*Test Ban List Updates$/,
+    /^Sealed:\s*No ban list$/,
+  ]);
   await expect(legality.getByRole("link", { name: "Test Ban List Updates" }).first()).toHaveAttribute(
     "href",
     announcement,

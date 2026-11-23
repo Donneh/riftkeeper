@@ -54,7 +54,7 @@ describe("responsiveImage for the card page", () => {
   });
 
   test("describes the art column in sizes", () => {
-    expect(responsiveImage(cdnUrl, "portrait", "detail").sizes).toContain("22rem");
+    expect(responsiveImage(cdnUrl, "portrait", "detail").sizes).toContain("17rem");
     expect(responsiveImage(cdnUrl, "landscape", "detail").sizes).toContain("42rem");
   });
 });
