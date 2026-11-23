@@ -1,5 +1,6 @@
 export { default as AppShell } from "./AppShell.vue";
 export { default as BackLink } from "./BackLink.vue";
+export { default as CardCredits } from "./CardCredits.vue";
 export { default as CardDetail } from "./CardDetail.vue";
 export { default as CardDetailSkeleton } from "./CardDetailSkeleton.vue";
 export { default as CardGrid } from "./CardGrid.vue";
@@ -7,6 +8,7 @@ export { default as CardImage } from "./CardImage.vue";
 export { default as CardInfo } from "./CardInfo.vue";
 export { default as CardLegality } from "./CardLegality.vue";
 export { default as CardPricing } from "./CardPricing.vue";
+export { default as CardPrintingsPanel } from "./CardPrintingsPanel.vue";
 export { default as CardRulesNotes } from "./CardRulesNotes.vue";
 export { default as CardText } from "./CardText.vue";
 export { default as CardTile } from "./CardTile.vue";

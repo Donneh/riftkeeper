@@ -2,10 +2,12 @@
 import {
   AppShell,
   BackLink,
+  CardCredits,
   CardDetail,
   CardDetailSkeleton,
   CardImage,
   CardInfo,
+  CardPrintingsPanel,
   DomainBackdrop,
   domainScope,
   SiteFooter,
@@ -148,13 +150,18 @@ function choosePrinting(id: string) {
           loading="eager"
         />
       </template>
-      <CardInfo
-        :card="info"
-        :printings="printings"
-        :selected="printing.id"
-        @select="choosePrinting"
-        @navigate="navigate"
-      />
+      <template #credits>
+        <CardCredits :card="info" @navigate="navigate" />
+      </template>
+      <CardInfo :card="info" @navigate="navigate" />
+      <template #aside>
+        <CardPrintingsPanel
+          :printings="printings"
+          :selected="printing.id"
+          :pricing="info.pricing"
+          @select="choosePrinting"
+        />
+      </template>
     </CardDetail>
     <template #footer>
       <SiteFooter :notice="RIOT_NOTICE" />

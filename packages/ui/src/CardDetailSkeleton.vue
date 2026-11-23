@@ -36,21 +36,31 @@ withDefaults(defineProps<{ orientation?: CardOrientation; label?: string }>(), {
       </div>
       <div class="section">
         <span class="line label" />
-        <span class="line value" />
         <span class="line short" />
       </div>
-      <div class="section">
-        <span class="line label" />
-        <span v-for="index in 2" :key="index" class="printing">
-          <span class="thumbnail" />
-          <span class="line text" />
-        </span>
-      </div>
-      <div class="section foot">
+    </GlassPanel>
+    <template #credits>
+      <div class="foot" aria-hidden="true">
         <span class="pill" />
         <span class="line label" />
       </div>
-    </GlassPanel>
+    </template>
+    <template #aside>
+      <GlassPanel class="info" aria-hidden="true">
+        <div class="section">
+          <span class="line label" />
+          <span v-for="index in 2" :key="index" class="printing">
+            <span class="thumbnail" />
+            <span class="line text" />
+          </span>
+        </div>
+        <div class="section">
+          <span class="line label" />
+          <span class="line value" />
+          <span class="line short" />
+        </div>
+      </GlassPanel>
+    </template>
   </CardDetail>
 </template>
 
@@ -113,9 +123,9 @@ withDefaults(defineProps<{ orientation?: CardOrientation; label?: string }>(), {
 }
 
 .foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  gap: var(--rk-space-3);
+  justify-items: start;
 }
 
 .pill {

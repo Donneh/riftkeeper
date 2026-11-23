@@ -16,7 +16,10 @@ const QUALITY: Record<ImageLayout, number | undefined> = {
 
 const SIZES: Record<ImageLayout, Record<CardOrientation, string>> = {
   grid: { portrait: "(min-width: 40rem) 14rem, 45vw", landscape: "(min-width: 40rem) 28rem, 90vw" },
-  detail: { portrait: "(min-width: 48rem) 22rem, min(18rem, 80vw)", landscape: "(min-width: 48rem) 42rem, 100vw" },
+  detail: {
+    portrait: "(min-width: 64rem) 17rem, (min-width: 48rem) 20rem, min(18rem, 80vw)",
+    landscape: "(min-width: 64rem) 22rem, (min-width: 48rem) 42rem, 100vw",
+  },
   thumbnail: { portrait: "2.5rem", landscape: "2.5rem" },
 };
 
