@@ -11,6 +11,7 @@
     "production",
     "unit",
     "verify-live",
+    "worker",
     "app/utils/card-detail.ts",
     "app/utils/card-images.ts",
     "app/utils/filter-chips.ts",

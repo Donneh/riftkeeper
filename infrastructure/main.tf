@@ -147,17 +147,38 @@ resource "cloudflare_worker_version" "web" {
   account_id         = var.account_id
   worker_id          = cloudflare_worker.web.id
   compatibility_date = local.web_wrangler_config.compatibility_date
+  main_module        = "index.js"
 
-  modules = [{
-    name         = "_redirects"
-    content_type = "text/plain"
-    content_file = "${path.module}/../apps/web/${local.web_wrangler_config.assets.directory}/_redirects"
-  }]
+  bindings = [
+    {
+      type = "assets"
+      name = local.web_wrangler_config.assets.binding
+    },
+    {
+      type    = "service"
+      name    = local.web_wrangler_config.services[0].binding
+      service = cloudflare_worker.api.name
+    },
+  ]
+
+  modules = [
+    {
+      name         = "index.js"
+      content_type = "application/javascript+module"
+      content_file = "${path.module}/../apps/web/.output/worker/index.js"
+    },
+    {
+      name         = "_redirects"
+      content_type = "text/plain"
+      content_file = "${path.module}/../apps/web/${local.web_wrangler_config.assets.directory}/_redirects"
+    },
+  ]
 
   assets = {
     directory = "${path.module}/../apps/web/${local.web_wrangler_config.assets.directory}"
     config = {
       not_found_handling = local.web_wrangler_config.assets.not_found_handling
+      run_worker_first   = local.web_wrangler_config.assets.run_worker_first
     }
   }
 }
