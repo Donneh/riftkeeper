@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "nuxt dev",
-    "build": "nuxt generate",
+    "build": "nuxt generate && wrangler deploy --dry-run --outdir .output/worker",
     "preview": "wrangler dev",
-    "typecheck": "nuxt typecheck",
+    "typecheck": "nuxt typecheck && tsc --noEmit -p tsconfig.worker.json",
     "test": "bun test unit",
     "test:e2e": "playwright test",
     "test:dev": "playwright test --config playwright.dev.config.ts",
@@ -22,6 +22,7 @@
     "vue-router": "^5.4.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20261027.1",
     "@playwright/test": "^1.64.1",
     "@types/bun": "^1.4.4",
     "@types/node": "^24.0.0",
