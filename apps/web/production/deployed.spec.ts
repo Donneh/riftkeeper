@@ -1,4 +1,4 @@
-import type { APIRequestContext } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 import { expectedApiVersion, expectedBuildId, webUrl, wwwUrl } from "../playwright.production.config.ts";
 import { appReadiness, servesTheApp } from "./app-readiness.ts";
 import { expect, test } from "./staged-version.ts";
@@ -16,6 +16,22 @@ async function waitForApp(request: APIRequestContext, path: string) {
       intervals: [2_000, 5_000],
     })
     .toBe("ready");
+}
+
+async function openApp(page: Page, path: string) {
+  await expect
+    .poll(
+      async () => {
+        const response = await page.goto(path);
+        return response !== null && servesTheApp(await response.text(), expectedBuildId);
+      },
+      {
+        message: `the browser gets ${webUrl}${path}${expectedBuildId ? ` at build ${expectedBuildId}` : ""}`,
+        timeout: READY_TIMEOUT_MS,
+        intervals: [2_000, 5_000],
+      },
+    )
+    .toBe(true);
 }
 
 test.beforeAll(async ({ request }) => {
@@ -39,7 +55,7 @@ test("retired login links permanently redirect to the public search", async ({ r
 test("a shared search link shows its cards", async ({ page, request }) => {
   await waitForApp(request, `/?q=${encodeURIComponent(query)}`);
   const searchResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/search");
-  await page.goto(`/?q=${encodeURIComponent(query)}`);
+  await openApp(page, `/?q=${encodeURIComponent(query)}`);
 
   await expect(page.getByRole("searchbox", { name: "Search cards" })).toHaveValue(query);
   await expect(page.getByRole("list", { name: "Search results" }).getByRole("listitem").first()).toBeVisible();
@@ -65,7 +81,7 @@ test("a shared search link shows its cards", async ({ page, request }) => {
 test("a card link opened directly serves the app and shows the card", async ({ page, request }) => {
   await waitForApp(request, `/?q=${encodeURIComponent(query)}`);
   const searchResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/search");
-  await page.goto(`/?q=${encodeURIComponent(query)}`);
+  await openApp(page, `/?q=${encodeURIComponent(query)}`);
   const { data } = (await (await searchResponse).json()) as { data: { id: string; name: string }[] };
   const [card] = data;
   if (!card) throw new Error(`${query} finds no card`);
@@ -79,7 +95,7 @@ test("a card link opened directly serves the app and shows the card", async ({ p
     `${path} serves the app${expectedBuildId ? ` at build ${expectedBuildId}` : ""}`,
   ).toBe(true);
 
-  await page.goto(path);
+  await openApp(page, path);
 
   await expect(page.getByRole("heading", { level: 1, name: card.name, exact: true })).toBeVisible();
   await expect(page.getByRole("article").getByRole("img", { name: card.name, exact: true })).toBeVisible();
@@ -91,7 +107,7 @@ test("an unknown path serves the app, which says the page was not found", async 
   expect(response.status()).toBe(200);
   expect(servesTheApp(await response.text(), expectedBuildId)).toBe(true);
 
-  await page.goto("/no-such-page");
+  await openApp(page, "/no-such-page");
 
   await expect(page.getByRole("heading", { level: 1, name: "Page not found" })).toBeAttached();
 });
