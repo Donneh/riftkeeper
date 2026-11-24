@@ -118,7 +118,7 @@ function finishQuotes(prices: PrintingPrices): { key: HistoryFinish; finish: str
 
 const daysBefore = (date: string, latest: string) => Math.round((Date.parse(latest) - Date.parse(date)) / DAY_MS);
 
-function describeChange(change: number, period: string): Pick<PriceTrend, "change" | "description"> {
+export function describeChange(change: number, period: string): Pick<PriceTrend, "change" | "description"> {
   const percent = PERCENT.format(Math.abs(change));
   if (percent === PERCENT.format(0)) return { change: percent, description: `Unchanged in ${period}` };
   return change > 0

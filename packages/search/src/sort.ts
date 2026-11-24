@@ -1,5 +1,5 @@
 import type { Card, Printing, Rarity } from "@riftkeeper/cards";
-import { marketPrice } from "./price.ts";
+import { marketPrice } from "@riftkeeper/cards/prices";
 import type { SortDirection, SortKey } from "./search.ts";
 import { setReleaseRank } from "./set-order.ts";
 

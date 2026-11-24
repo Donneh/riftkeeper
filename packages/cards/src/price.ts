@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type Card, CardSchema, type PrintingId, PrintingIdSchema, PrintingSchema } from "./card.ts";
+import { type Card, CardSchema, type Printing, type PrintingId, PrintingIdSchema, PrintingSchema } from "./card.ts";
 
 export const PRICE_CURRENCY = "USD";
 export const PRICE_SOURCE = "TCGplayer via TCGCSV";
@@ -68,4 +68,12 @@ export function withPrices(cards: readonly Card[], snapshot: PriceSnapshot): Pri
     ...card,
     printings: card.printings.map((printing) => ({ ...printing, prices: pricesFor(snapshot, printing.id) })),
   }));
+}
+
+export function marketPrice(printing: Printing & { readonly prices?: PrintingPrices | null }): number | null {
+  const normal = printing.prices?.normal?.market ?? null;
+  const foil = printing.prices?.foil?.market ?? null;
+  if (normal === null) return foil;
+  if (foil === null) return normal;
+  return Math.min(normal, foil);
 }

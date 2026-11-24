@@ -7,8 +7,9 @@
     "directory": ".output/public",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/", "/cards/*"]
+    "run_worker_first": ["/", "/cards/*", "/deck", "/deck/*"]
   },
+  "rules": [{ "type": "Data", "globs": ["**/*.woff"], "fallthrough": true }],
   "services": [{ "binding": "API", "service": "riftkeeper-api" }],
   "dev": {
     "port": 3002

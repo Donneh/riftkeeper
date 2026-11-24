@@ -14,10 +14,14 @@
     "verify:live": "node verify-live/cli.ts"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@resvg/resvg-wasm": "^2.6.2",
     "@riftkeeper/cards": "workspace:*",
     "@riftkeeper/search": "workspace:*",
     "@riftkeeper/ui": "workspace:*",
     "nuxt": "^4.6.3",
+    "satori": "0.32.0",
     "vue": "^3.5.44",
     "vue-router": "^5.4.0"
   },

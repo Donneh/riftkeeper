@@ -4,6 +4,7 @@ import type { NavLink } from "@riftkeeper/ui";
 export function useSiteNavigation(currentHref: string | null = "/") {
   const links: NavLink[] = [
     { label: "Cards", href: "/", current: currentHref === "/" },
+    { label: "Deck", href: "/deck", current: currentHref === "/deck" },
     { label: "Random", href: "/random", current: currentHref === "/random" },
   ];
   const query = ref("");

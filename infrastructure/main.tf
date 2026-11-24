@@ -29,7 +29,20 @@ locals {
   worker_bundle   = "${path.module}/../apps/api/dist/index.js"
 
   web_wrangler_config = jsondecode(file("${path.module}/../apps/web/wrangler.jsonc"))
-  www_hostname        = "www.${var.web_hostname}"
+  web_worker_output   = "${path.module}/../apps/web/.output/worker"
+  web_worker_modules = concat(
+    [for name in sort(fileset(local.web_worker_output, "*.wasm")) : {
+      name         = name
+      content_type = "application/wasm"
+      content_file = "${local.web_worker_output}/${name}"
+    }],
+    [for name in sort(fileset(local.web_worker_output, "*.woff")) : {
+      name         = name
+      content_type = "application/octet-stream"
+      content_file = "${local.web_worker_output}/${name}"
+    }],
+  )
+  www_hostname = "www.${var.web_hostname}"
 
   scheduler_wrangler_config = jsondecode(file("${path.module}/../apps/scheduler/wrangler.jsonc"))
   scheduler_bundle          = "${path.module}/../apps/scheduler/dist/index.js"
@@ -162,18 +175,18 @@ resource "cloudflare_worker_version" "web" {
     },
   ]
 
-  modules = [
+  modules = concat([
     {
       name         = "index.js"
       content_type = "application/javascript+module"
-      content_file = "${path.module}/../apps/web/.output/worker/index.js"
+      content_file = "${local.web_worker_output}/index.js"
     },
     {
       name         = "_redirects"
       content_type = "text/plain"
       content_file = "${path.module}/../apps/web/${local.web_wrangler_config.assets.directory}/_redirects"
     },
-  ]
+  ], local.web_worker_modules)
 
   assets = {
     directory = "${path.module}/../apps/web/${local.web_wrangler_config.assets.directory}"

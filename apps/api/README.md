@@ -18,18 +18,21 @@ The Worker code in `src` must not use Bun APIs. `bun run typecheck` checks `src`
 
 ## Endpoints
 
-| Method | Path                       | Response                                                                 |
-| ------ | -------------------------- | ------------------------------------------------------------------------ |
-| GET    | `/health`                  | `200 { data: { status: "ok", cards: number, version: string \| null } }` |
-| GET    | `/cards`                   | `200 { data: Card[] }`                                                   |
-| GET    | `/cards/random`            | `200 { data: Card \| null, warnings }`, `400` bad query                  |
-| GET    | `/cards/:id`               | `200 { data: Card }`, `400` bad id, `404` no card                        |
-| GET    | `/cards/:id/price-history` | `200 { data: PriceHistory }`, `400` bad id, `404` no card                |
-| GET    | `/cards/:id/rules`         | `200 { data: RulesSnapshot }`, `400` bad id, `404` no card               |
-| GET    | `/search`                  | `200 { data: Card[], meta, warnings, parsed }`, `400` bad parameters     |
-| GET    | `/search/options`          | `200 { data: { domains, types, supertypes, rarities, variants, sets } }` |
+| Method | Path                       | Response                                                                                                 |
+| ------ | -------------------------- | -------------------------------------------------------------------------------------------------------- |
+| GET    | `/health`                  | `200 { data: { status: "ok", cards: number, version: string \| null } }`                                 |
+| GET    | `/cards`                   | `200 { data: Card[] }`                                                                                   |
+| GET    | `/cards/random`            | `200 { data: Card \| null, warnings }`, `400` bad query                                                  |
+| GET    | `/cards/:id`               | `200 { data: Card }`, `400` bad id, `404` no card                                                        |
+| GET    | `/cards/:id/price-history` | `200 { data: PriceHistory }`, `400` bad id, `404` no card                                                |
+| GET    | `/cards/:id/rules`         | `200 { data: RulesSnapshot }`, `400` bad id, `404` no card                                               |
+| GET    | `/search`                  | `200 { data: Card[], meta, warnings, parsed }`, `400` bad parameters                                     |
+| GET    | `/search/options`          | `200 { data: { domains, types, supertypes, rarities, variants, sets } }`                                 |
+| GET    | `/decks/check`             | `200 { data: { deck, code, checkedOn, formats, partner, errata, price } }`, `400` bad or unreadable deck |
 
 Errors use the shape `{ error: { code, message } }`.
+
+`GET /decks/check` reads a deck from `code`, a [Piltover Archive deck code](https://www.npmjs.com/package/@piltoverarchive/riftbound-deck-codes), or `list`, a text decklist, and checks it with `packages/cards/src/deck.ts`. `formats` gives a verdict per format: the construction problems, the cards banned on the day of the check, and the bans announced for a later date. An optional 2v2 partner's deck, `partner` (a code) or `partnerList`, adds the team rules to the 2v2 verdict: partners can't share a legend or a battlefield, and the partner's own deck must be legal too. `code` and `partner.code` give the deck codes of what was read, so a pasted list can be replaced by a short link. Responses are cacheable for five minutes.
 
 `GET /cards/random` chooses uniformly from all cards, or from the cards matching an optional `q` search query (at most 512 characters). It uses the same query language and warning limit as `/search`, without pagination. Each card has an equal chance regardless of its printing count. A printing must satisfy the whole query for its card to qualify; the response includes the chosen card's full set of printings and prices. When no card matches, `data` is `null`. Responses use `Cache-Control: no-store` so repeated visits can choose again.
 
