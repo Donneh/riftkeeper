@@ -1,22 +1,22 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { makeCard, makePrinting } from "@riftkeeper/cards/testing";
-import worker, { type Env } from "../worker/index.ts";
+import type { Env } from "../worker/index.ts";
 
 const assetBytes = (specifier: string) => Bun.file(new URL(import.meta.resolve(specifier))).arrayBuffer();
 const font = async (name: string, path: string, weight: number) => ({ name, data: await assetBytes(path), weight });
 
-mock.module("../worker/render-assets.ts", async () => ({
-  renderAssets: {
-    layoutWasm: new WebAssembly.Module(await assetBytes("satori/yoga.wasm")),
-    resvgWasm: new WebAssembly.Module(await assetBytes("@resvg/resvg-wasm/index_bg.wasm")),
-    fonts: await Promise.all([
-      font("Inter", "@fontsource/inter/files/inter-latin-400-normal.woff", 400),
-      font("Inter", "@fontsource/inter/files/inter-latin-600-normal.woff", 600),
-      font("Inter", "@fontsource/inter/files/inter-latin-700-normal.woff", 700),
-      font("JetBrains Mono", "@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff", 500),
-    ]),
-  },
-}));
+const renderAssets = {
+  layoutWasm: new WebAssembly.Module(await assetBytes("satori/yoga.wasm")),
+  resvgWasm: new WebAssembly.Module(await assetBytes("@resvg/resvg-wasm/index_bg.wasm")),
+  fonts: await Promise.all([
+    font("Inter", "@fontsource/inter/files/inter-latin-400-normal.woff", 400),
+    font("Inter", "@fontsource/inter/files/inter-latin-600-normal.woff", 600),
+    font("Inter", "@fontsource/inter/files/inter-latin-700-normal.woff", 700),
+    font("JetBrains Mono", "@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff", 500),
+  ]),
+};
+mock.module("../worker/render-assets.ts", () => ({ renderAssets }));
+const { default: worker } = await import("../worker/index.ts");
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const TINY_PNG = Uint8Array.from(
