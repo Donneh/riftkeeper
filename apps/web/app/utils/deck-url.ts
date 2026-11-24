@@ -1,4 +1,11 @@
-import type { Deck, DeckErrata, DeckPrice, FormatVerdict } from "@riftkeeper/cards/deck";
+import type {
+  Deck,
+  DeckErrata,
+  DeckPrice,
+  DeckPriceTrend,
+  FormatVerdict,
+  SectionChanges,
+} from "@riftkeeper/cards/deck";
 import type { PricedCard } from "@riftkeeper/cards/prices";
 
 export interface DeckCheck {
@@ -9,6 +16,13 @@ export interface DeckCheck {
   readonly errata: readonly DeckErrata[];
   readonly price: DeckPrice | null;
   readonly partner: { readonly deck: Deck<PricedCard>; readonly code: string | null } | null;
+  readonly priceTrend: DeckPriceTrend | null;
+  readonly list: string;
+  readonly comparison: {
+    readonly deck: Deck<PricedCard>;
+    readonly code: string | null;
+    readonly changes: readonly SectionChanges[];
+  } | null;
 }
 
 export interface DeckInput {
@@ -16,9 +30,10 @@ export interface DeckInput {
   readonly list?: string;
   readonly partner?: string;
   readonly partnerList?: string;
+  readonly compare?: string;
 }
 
-const URL_KEYS = { code: "d", list: "list", partner: "p", partnerList: "plist" } as const;
+const URL_KEYS = { code: "d", list: "list", partner: "p", partnerList: "plist", compare: "vs" } as const;
 
 export function deckInput(query: Record<string, unknown>): DeckInput | null {
   const input = Object.fromEntries(
@@ -52,5 +67,9 @@ export function codedInput(input: DeckInput, check: DeckCheck): DeckInput | null
   const lists = input.list !== undefined || input.partnerList !== undefined;
   const known = check.deck.unknown.length === 0 && (check.partner?.deck.unknown.length ?? 0) === 0;
   if (!lists || !known || check.code === null || (check.partner !== null && check.partner.code === null)) return null;
-  return { code: check.code, ...(check.partner?.code ? { partner: check.partner.code } : {}) };
+  return {
+    code: check.code,
+    ...(check.partner?.code ? { partner: check.partner.code } : {}),
+    ...(input.compare === undefined ? {} : { compare: input.compare }),
+  };
 }

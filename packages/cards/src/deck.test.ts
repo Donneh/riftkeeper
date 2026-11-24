@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import type { z } from "zod";
-import { makeCard, makePriceSnapshot, makePrinting, makeRulesSnapshot } from "../test-support/fixtures.ts";
+import {
+  makeCard,
+  makePriceHistory,
+  makePriceSnapshot,
+  makePrinting,
+  makeRulesSnapshot,
+} from "../test-support/fixtures.ts";
 import type { Card, CardId, CardSchema } from "./card.ts";
 import {
   checkDeck,
@@ -8,8 +14,11 @@ import {
   type Deck,
   DeckCodeError,
   deckCode,
+  deckDiff,
   deckErrata,
+  deckListText,
   deckPrice,
+  deckPriceTrend,
   readDeckCode,
   readDeckList,
 } from "./deck.ts";
@@ -292,6 +301,104 @@ describe("deckErrata and deckPrice", () => {
     });
     const deck = readDeckList("3 filler 0\n6 fury rune\n2 filler 1", withPrices(library, snapshot));
 
-    expect(deckPrice(deck)).toEqual({ total: 1.5, currency: "USD", unpriced: 2 });
+    expect(deckPrice(deck)).toMatchObject({ total: 1.5, cheapest: 1.5, currency: "USD", unpriced: 2 });
+  });
+
+  test("prices each printing and totals the deck as if bought at each card's cheapest printing", () => {
+    const quote = (market: number) => ({ normal: { market, low: null, mid: null, high: null } });
+    const twoPrintings = card("two-printings", 80, {
+      printings: [
+        makePrinting({ id: "ogn-080a-298", publicCode: "OGN-080a/298", collectorNumber: 80, variant: "alt-art" }),
+        makePrinting({ id: "ogn-080-298", publicCode: "OGN-080/298", collectorNumber: 80 }),
+      ],
+    });
+    const priced = withPrices(
+      [twoPrintings, fillers[0] as Card],
+      makePriceSnapshot({
+        printings: { "ogn-080a-298": quote(10), "ogn-080-298": quote(0.5), "ogn-010-298": quote(1) },
+      }),
+    );
+
+    const price = deckPrice(readDeckList("2 OGN-080a\n1 OGN-080\n3 filler 0", priced));
+
+    expect(price).toMatchObject({ total: 23.5, cheapest: 4.5, unpriced: 0 });
+    expect(price?.printings["ogn-080a-298"]).toEqual({ each: 10, cheapest: { code: "OGN-080", each: 0.5 } });
+    expect(price?.printings["ogn-080-298"]).toEqual({ each: 0.5, cheapest: null });
+  });
+});
+
+describe("deckPriceTrend", () => {
+  const dates = Array.from({ length: 8 }, (_, day) => `2026-11-${String(day + 10).padStart(2, "0")}`);
+  const deck = () => readDeckList("2 filler 0\n1 filler 1", library);
+
+  test("totals the cheaper finish of each copy per day, filling missing days of each finish from its nearest price", () => {
+    const history = makePriceHistory({
+      dates,
+      printings: {
+        "ogn-010-298": { normal: [1, 1, null, 1, 1, 1, 1, 2], foil: [3, 0.5, 3, 3, 3, 3, 3, 3] },
+        "ogn-011-298": { normal: [null, 4, 4, 4, 4, 4, 4, 4] },
+      },
+    });
+
+    const trend = deckPriceTrend(deck(), history);
+
+    expect(trend?.days.map(({ total }) => total)).toEqual([6, 5, 6, 6, 6, 6, 6, 8]);
+    expect(trend?.change).toBeCloseTo(1 / 3);
+  });
+
+  test("gives no trend with fewer than 7 days or nothing priced on the first day", () => {
+    const short = makePriceHistory({
+      dates: dates.slice(0, 6),
+      printings: { "ogn-010-298": { normal: [1, 1, 1, 1, 1, 1] } },
+    });
+    expect(deckPriceTrend(deck(), short)).toBeNull();
+    expect(deckPriceTrend(deck(), makePriceHistory({ dates, printings: {} }))).toBeNull();
+  });
+});
+
+describe("deckDiff", () => {
+  test("lists per section the cards whose count changed, across printings, in both directions", () => {
+    const before = legalDeck();
+    const after = readDeckList(
+      LEGAL_LIST.replace("3 filler 0", "1 filler 0\n2 calm unit").replace("1 battlefield 52", "1 battlefield 71"),
+      library,
+    );
+
+    expect(deckDiff(before, after)).toEqual([
+      {
+        section: "Main deck",
+        changes: [
+          { card: "filler-0" as CardId, name: "filler 0", before: 3, after: 1 },
+          { card: "calm-unit" as CardId, name: "calm unit", before: 0, after: 2 },
+        ],
+      },
+      {
+        section: "Battlefields",
+        changes: [
+          { card: "battlefield-52" as CardId, name: "battlefield 52", before: 1, after: 0 },
+          { card: "battlefield-71" as CardId, name: "battlefield 71", before: 0, after: 1 },
+        ],
+      },
+    ]);
+    expect(deckDiff(before, legalDeck())).toEqual([]);
+  });
+});
+
+describe("deckListText", () => {
+  test("writes the registration list in Riot's order with printed codes, and reads back as the same deck", () => {
+    const deck = readDeckList(`${LEGAL_LIST}\nSideboard:\n2 calm unit`, library);
+
+    const text = deckListText(deck);
+
+    expect(text.split("\n\n").map((block) => block.split("\n")[0])).toEqual([
+      "Legend",
+      "Chosen champion",
+      "Main deck (39)",
+      "Battlefields",
+      "Runes (12)",
+      "Sideboard (2)",
+    ]);
+    expect(text).toContain("1 Jinx, Rebel (OGN-002/298)");
+    expect(readDeckList(text, library)).toEqual(deck);
   });
 });

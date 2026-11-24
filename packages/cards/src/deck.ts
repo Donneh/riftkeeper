@@ -1,6 +1,7 @@
 import { type Deck as CodeDeck, getCodeFromDeck, getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
 import type { Card, CardId, Domain, Printing } from "./card.ts";
 import { marketPrice, type PricedCard, type PriceSnapshot } from "./price.ts";
+import type { PriceHistory } from "./price-history.ts";
 import { type Errata, type Format, isBanned, type RulesSnapshot } from "./rules.ts";
 import { FORMATS } from "./values.ts";
 
@@ -51,10 +52,34 @@ export interface DeckErrata extends Errata {
   readonly name: string;
 }
 
+export interface PrintingPrice {
+  readonly each: number | null;
+  readonly cheapest: { readonly code: string; readonly each: number } | null;
+}
+
 export interface DeckPrice {
   readonly total: number;
+  readonly cheapest: number;
   readonly currency: PriceSnapshot["currency"];
   readonly unpriced: number;
+  readonly printings: Readonly<Record<string, PrintingPrice>>;
+}
+
+export interface DeckPriceTrend {
+  readonly days: readonly { readonly date: string; readonly total: number }[];
+  readonly change: number;
+}
+
+export interface DeckChange {
+  readonly card: CardId;
+  readonly name: string;
+  readonly before: number;
+  readonly after: number;
+}
+
+export interface SectionChanges {
+  readonly section: string;
+  readonly changes: readonly DeckChange[];
 }
 
 export class DeckCodeError extends Error {}
@@ -151,6 +176,7 @@ export function readDeckCode<C extends Card>(code: string, cards: readonly C[]):
 
 const HEADERS: readonly [RegExp, Section | "deck"][] = [
   [/^(?:champion )?legends?$/, "deck"],
+  [/^additional legends?$/, "additionalLegends"],
   [/^(?:chosen )?champions?$/, "champion"],
   [/^(?:main ?deck|main|deck)$/, "deck"],
   [/^battlefields?$/, "deck"],
@@ -211,8 +237,10 @@ export function readDeckList<C extends Card>(text: string, cards: readonly C[]):
       line = line.slice(sideboard[0].length);
     }
     const { count, text: cardText } = countedLine(line);
-    const label = cardText.replace(/\s*[([](?:chosen(?: champion)?|champion)[)\]]\s*$/i, "").trim();
-    const code = /^([A-Z]{3}-(?:R|SP)?\d+[a-z*]?)(?:\/\d+)?$/i.exec(label)?.[1];
+    const withoutMark = cardText.replace(/\s*[([](?:chosen(?: champion)?|champion)[)\]]\s*$/i, "").trim();
+    const printed = /^(.*?)\s*\(([A-Z]{3}-(?:R|SP)?\d+[a-z*]?)(?:\/\d+)?\)$/i.exec(withoutMark);
+    const label = printed ? (printed[1] as string) || (printed[2] as string) : withoutMark;
+    const code = printed?.[2] ?? /^([A-Z]{3}-(?:R|SP)?\d+[a-z*]?)(?:\/\d+)?$/i.exec(label)?.[1];
     const byCodeMatch = code === undefined ? undefined : byCode.get(code.toLowerCase());
     const card = byCodeMatch?.card ?? byName.get(normalize(label));
     if (card === undefined) {
@@ -465,16 +493,124 @@ export function deckErrata(deck: Deck, rules: RulesSnapshot): DeckErrata[] {
   });
 }
 
+function cheapestPrinting(card: PricedCard): { code: string; each: number } | null {
+  let cheapest: { code: string; each: number } | null = null;
+  for (const printing of card.printings) {
+    const each = marketPrice(printing);
+    if (each !== null && (cheapest === null || each < cheapest.each)) cheapest = { code: printingCode(printing), each };
+  }
+  return cheapest;
+}
+
 export function deckPrice(deck: Deck<PricedCard>): DeckPrice | null {
   const entries = deckEntries(deck);
   const currency = entries.find(({ printing }) => printing.prices !== null)?.printing.prices?.currency;
   if (currency === undefined) return null;
   let cents = 0;
+  let cheapestCents = 0;
   let unpriced = 0;
-  for (const { printing, count } of entries) {
-    const price = marketPrice(printing);
-    if (price === null) unpriced += count;
-    else cents += Math.round(price * 100) * count;
+  const printings: Record<string, PrintingPrice> = {};
+  for (const { card, printing, count } of entries) {
+    const each = marketPrice(printing);
+    const cheapest = cheapestPrinting(card);
+    printings[printing.id] = {
+      each,
+      cheapest: cheapest !== null && (each === null || cheapest.each < each) ? cheapest : null,
+    };
+    if (each === null) unpriced += count;
+    else cents += Math.round(each * 100) * count;
+    const lowest = cheapest === null ? each : each === null ? cheapest.each : Math.min(each, cheapest.each);
+    if (lowest !== null) cheapestCents += Math.round(lowest * 100) * count;
   }
-  return { total: cents / 100, currency, unpriced };
+  return { total: cents / 100, cheapest: cheapestCents / 100, currency, unpriced, printings };
+}
+
+const MIN_TREND_DAYS = 7;
+
+function filled(series: readonly (number | null)[] | undefined): number[] | null {
+  const first = series?.find((amount) => amount !== null);
+  if (series === undefined || first === undefined || first === null) return null;
+  let last = first;
+  return series.map((amount) => {
+    if (amount !== null) last = amount;
+    return last;
+  });
+}
+
+function dailyMarket(history: PriceHistory, printing: Printing): number[] | null {
+  const series = history.printings[printing.id];
+  const normal = filled(series?.normal);
+  const foil = filled(series?.foil);
+  if (normal === null) return foil;
+  if (foil === null) return normal;
+  return normal.map((amount, index) => Math.min(amount, foil[index] ?? amount));
+}
+
+export function deckPriceTrend(deck: Deck, history: PriceHistory): DeckPriceTrend | null {
+  if (history.dates.length < MIN_TREND_DAYS) return null;
+  const cents = history.dates.map(() => 0);
+  for (const { printing, count } of deckEntries(deck)) {
+    const series = dailyMarket(history, printing);
+    series?.forEach((amount, index) => {
+      cents[index] = (cents[index] ?? 0) + Math.round(amount * 100) * count;
+    });
+  }
+  const first = cents[0] ?? 0;
+  const last = cents.at(-1) ?? 0;
+  if (first === 0) return null;
+  return {
+    days: history.dates.map((date, index) => ({ date, total: (cents[index] ?? 0) / 100 })),
+    change: (last - first) / first,
+  };
+}
+
+const DIFF_SECTIONS: readonly [string, (deck: Deck) => readonly DeckEntry[]][] = [
+  ["Legend", (deck) => [...deck.legends, ...deck.additionalLegends]],
+  ["Chosen champion", (deck) => (deck.champion === null ? [] : [deck.champion])],
+  ["Main deck", (deck) => deck.main],
+  ["Battlefields", (deck) => deck.battlefields],
+  ["Runes", (deck) => deck.runes],
+  ["Sideboard", (deck) => deck.sideboard],
+];
+
+function countsByCard(entries: readonly DeckEntry[]): Map<CardId, { card: Card; count: number }> {
+  const counts = new Map<CardId, { card: Card; count: number }>();
+  for (const { card, count } of entries)
+    counts.set(card.id, { card, count: (counts.get(card.id)?.count ?? 0) + count });
+  return counts;
+}
+
+export function deckDiff(before: Deck, after: Deck): SectionChanges[] {
+  return DIFF_SECTIONS.flatMap(([section, entriesOf]) => {
+    const was = countsByCard(entriesOf(before));
+    const now = countsByCard(entriesOf(after));
+    const changes = [...new Set([...was.keys(), ...now.keys()])].flatMap((id) => {
+      const card = (now.get(id) ?? was.get(id))?.card as Card;
+      const beforeCount = was.get(id)?.count ?? 0;
+      const afterCount = now.get(id)?.count ?? 0;
+      return beforeCount === afterCount
+        ? []
+        : [{ card: id, name: cardName(card), before: beforeCount, after: afterCount }];
+    });
+    return changes.length === 0 ? [] : [{ section, changes }];
+  });
+}
+
+const listLine = ({ card, printing, count }: DeckEntry) => `${count} ${cardName(card)} (${printing.publicCode})`;
+
+export function deckListText(deck: Deck): string {
+  const main = total(deck.main);
+  const blocks: [string, readonly DeckEntry[]][] = [
+    ["Legend", deck.legends],
+    ["Additional legends", deck.additionalLegends],
+    ["Chosen champion", deck.champion === null ? [] : [deck.champion]],
+    [`Main deck (${main})`, deck.main],
+    ["Battlefields", deck.battlefields],
+    [`Runes (${total(deck.runes)})`, deck.runes],
+    [`Sideboard (${total(deck.sideboard)})`, deck.sideboard],
+  ];
+  return blocks
+    .filter(([, entries]) => entries.length > 0)
+    .map(([heading, entries]) => [heading, ...entries.map(listLine)].join("\n"))
+    .join("\n\n");
 }

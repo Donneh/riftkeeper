@@ -2,8 +2,10 @@ import type { CardId } from "@riftkeeper/cards";
 import type { Deck, DeckEntry } from "@riftkeeper/cards/deck";
 import type { PricedCard } from "@riftkeeper/cards/prices";
 import type { Format } from "@riftkeeper/cards/rules";
-import type { DeckLine, DeckReportContent, DeckSection } from "@riftkeeper/ui";
-import { cardHref } from "./card-detail";
+import type { DeckComparison, DeckHandCard, DeckLine, DeckOdds, DeckReportContent, DeckSection } from "@riftkeeper/ui";
+import { cardHref, describeChange } from "./card-detail";
+import { responsiveImage } from "./card-images";
+import { deckOdds, ODDS_TURN, OPENING_HAND } from "./deck-odds";
 import type { DeckCheck, DeckInput } from "./deck-url";
 
 export type DeckOutcome =
@@ -32,14 +34,35 @@ export async function checkDeck(apiBase: string, input: DeckInput): Promise<Deck
 const displayName = (card: PricedCard) => (card.subtitle === null ? card.name : `${card.name}, ${card.subtitle}`);
 const sum = (entries: readonly DeckEntry[]) => entries.reduce((total, entry) => total + entry.count, 0);
 
-function lines(entries: readonly DeckEntry<PricedCard>[], problem: Set<CardId>, upcoming: Set<CardId>): DeckLine[] {
-  return entries.map(({ card, printing, count }) => ({
-    count,
-    name: displayName(card),
-    code: printing.publicCode.split("/")[0] ?? printing.publicCode,
-    href: cardHref(card.id),
-    status: problem.has(card.id) ? "problem" : upcoming.has(card.id) ? "upcoming" : "ok",
-  }));
+type Money = (amount: number) => string;
+
+const moneyFormat = (currency: string): Money => {
+  const format = new Intl.NumberFormat("en-US", { style: "currency", currency });
+  return (amount) => format.format(amount);
+};
+
+function lines(
+  check: DeckCheck,
+  entries: readonly DeckEntry<PricedCard>[],
+  problem: Set<CardId>,
+  upcoming: Set<CardId>,
+): DeckLine[] {
+  const money = check.price === null ? null : moneyFormat(check.price.currency);
+  return entries.map(({ card, printing, count }) => {
+    const price = check.price?.printings[printing.id];
+    return {
+      count,
+      name: displayName(card),
+      code: printing.publicCode.split("/")[0] ?? printing.publicCode,
+      href: cardHref(card.id),
+      status: problem.has(card.id) ? "problem" : upcoming.has(card.id) ? "upcoming" : "ok",
+      imageUrl: printing.imageUrl,
+      srcset: responsiveImage(printing.imageUrl, printing.orientation).srcset,
+      orientation: printing.orientation,
+      price: money && price?.each != null ? money(price.each * count) : null,
+      cheaper: money && price?.cheapest ? `${price.cheapest.code} is ${money(price.cheapest.each)} each` : null,
+    };
+  });
 }
 
 function sections(check: DeckCheck): DeckSection[] {
@@ -58,7 +81,7 @@ function sections(check: DeckCheck): DeckSection[] {
   ];
   return all
     .filter(([title, entries]) => entries.length > 0 || title === "Legend" || title === "Main deck")
-    .map(([title, entries, count]) => ({ title, count, lines: lines(entries, problem, upcoming) }));
+    .map(([title, entries, count]) => ({ title, count, lines: lines(check, entries, problem, upcoming) }));
 }
 
 function title(deck: Deck<PricedCard>): string {
@@ -74,8 +97,92 @@ function partnerLegend(deck: Deck<PricedCard>): string {
 
 const sourceLabel = (url: string) => (url.includes("errata") ? "Riot errata" : "Riot announcement");
 
+const SHORT_DAY = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const PERCENT = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 0 });
+const DAY_MS = 86_400_000;
+
+function priceSummary(check: DeckCheck): DeckReportContent["price"] {
+  const { price, priceTrend } = check;
+  if (price === null) return null;
+  const money = moneyFormat(price.currency);
+  const trend =
+    priceTrend === null || priceTrend.days.length < 2
+      ? null
+      : {
+          ...describeChange(
+            priceTrend.change,
+            `${Math.round((Date.parse(priceTrend.days.at(-1)?.date ?? "") - Date.parse(priceTrend.days[0]?.date ?? "")) / DAY_MS)} days`,
+          ),
+          days: priceTrend.days.map(({ date, total }) => ({
+            date: DAY.format(Date.parse(date)),
+            amount: total,
+            price: money(total),
+          })),
+        };
+  return {
+    total: money(price.total),
+    note:
+      price.unpriced === 0
+        ? "TCGplayer market price"
+        : `TCGplayer market price, without ${price.unpriced} unpriced ${price.unpriced === 1 ? "card" : "cards"}`,
+    cheapest: price.cheapest < price.total ? `${money(price.cheapest)} with the cheapest printing of each card` : null,
+    trend,
+  };
+}
+
+function odds(deck: Deck<PricedCard>): DeckOdds | null {
+  const result = deckOdds(
+    deck.main.map(({ card, printing, count }) => ({
+      key: printing.id,
+      name: displayName(card),
+      count,
+      energyCost: card.energyCost,
+    })),
+  );
+  if (result === null) return null;
+  return {
+    deckSize: result.deckSize,
+    openingSize: OPENING_HAND,
+    byTurnCards: result.byTurnCards,
+    turn: ODDS_TURN,
+    cheapPlay: `An opening hand has a card costing 2 energy or less ${PERCENT.format(result.cheapPlay)} of the time.`,
+    rows: result.cards.map(({ name, copies, opening, byTurn }) => ({
+      name,
+      copies,
+      opening: PERCENT.format(opening),
+      byTurn: PERCENT.format(byTurn),
+    })),
+  };
+}
+
+export function handCards(entries: readonly DeckEntry<PricedCard>[]): DeckHandCard[] {
+  return entries.map(({ card, printing }) => ({
+    name: displayName(card),
+    imageUrl: printing.imageUrl,
+    srcset: responsiveImage(printing.imageUrl, printing.orientation).srcset,
+  }));
+}
+
+function comparison(check: DeckCheck): DeckComparison | null {
+  const { comparison } = check;
+  if (comparison === null) return null;
+  return {
+    title: title(comparison.deck),
+    href: comparison.code === null ? "/deck" : `/deck?d=${encodeURIComponent(comparison.code)}`,
+    sections: comparison.changes.map(({ section, changes }) => ({
+      title: section,
+      lines: changes.map(({ card, name, before, after }) => ({
+        name,
+        href: cardHref(card),
+        change: after > before ? `+${after - before}` : `−${before - after}`,
+        direction: after > before ? "added" : "removed",
+        detail: `${before} → ${after}`,
+      })),
+    })),
+  };
+}
+
 export function deckReport(check: DeckCheck): DeckReportContent {
-  const money = check.price && new Intl.NumberFormat("en-US", { style: "currency", currency: check.price.currency });
   return {
     title: title(check.deck),
     checkedOn: formatDay(check.checkedOn),
@@ -105,16 +212,10 @@ export function deckReport(check: DeckCheck): DeckReportContent {
       previous: entry.previous,
       source: { label: sourceLabel(entry.source), href: entry.source },
     })),
-    price:
-      check.price && money
-        ? {
-            total: money.format(check.price.total),
-            note:
-              check.price.unpriced === 0
-                ? "TCGplayer market price"
-                : `TCGplayer market price, without ${check.price.unpriced} unpriced ${check.price.unpriced === 1 ? "card" : "cards"}`,
-          }
-        : null,
+    price: priceSummary(check),
     code: check.code,
+    list: check.list,
+    odds: odds(check.deck),
+    comparison: comparison(check),
   };
 }

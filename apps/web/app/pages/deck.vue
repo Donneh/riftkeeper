@@ -1,7 +1,18 @@
 <script setup lang="ts">
-import { AppShell, DeckForm, DeckReport, SiteFooter, SiteNavbar, StatusMessage } from "@riftkeeper/ui";
-import { useTheme } from "~/composables/theme";
-import { checkDeck, deckReport } from "~/utils/deck-check";
+import {
+  AppShell,
+  DeckForm,
+  type DeckHandCard,
+  DeckReport,
+  type DeckView,
+  isDeckView,
+  SiteFooter,
+  SiteNavbar,
+  StatusMessage,
+} from "@riftkeeper/ui";
+import { browserStorage, useTheme } from "~/composables/theme";
+import { checkDeck, deckReport, handCards } from "~/utils/deck-check";
+import { sampleHand } from "~/utils/deck-odds";
 import { codedInput, deckInput, deckQuery, typedInput } from "~/utils/deck-url";
 import { RIOT_NOTICE } from "~/utils/riot-notice";
 
@@ -33,6 +44,49 @@ const {
 const report = computed(() =>
   status.value !== "pending" && outcome.value?.kind === "deck" ? deckReport(outcome.value.check) : null,
 );
+
+const VIEW_STORAGE_KEY = "riftkeeper-deck-view";
+const view = ref<DeckView>("list");
+const hand = ref<DeckHandCard[] | null>(null);
+
+onMounted(() => {
+  try {
+    const stored = browserStorage().getItem(VIEW_STORAGE_KEY);
+    if (isDeckView(stored)) view.value = stored;
+  } catch {
+    return;
+  }
+});
+
+function chooseView(next: DeckView) {
+  view.value = next;
+  try {
+    browserStorage().setItem(VIEW_STORAGE_KEY, next);
+  } catch {
+    return;
+  }
+}
+
+function draw() {
+  if (outcome.value?.kind === "deck") hand.value = handCards(sampleHand(outcome.value.check.deck.main));
+}
+
+function compare(code: string) {
+  return navigateTo({ query: { ...route.query, vs: code } });
+}
+
+function clearComparison() {
+  const { vs: _, ...rest } = route.query;
+  return navigateTo({ query: rest });
+}
+
+function copyList(list: string) {
+  return navigator.clipboard?.writeText(list);
+}
+
+watch(input, () => {
+  hand.value = null;
+});
 
 watch(outcome, (value) => {
   if (value?.kind !== "deck" || !input.value) return;
@@ -91,7 +145,19 @@ function copy(code: string) {
       action="Try again"
       @action="refresh"
     />
-    <DeckReport v-else-if="report" :report="report" @navigate="navigate" @copy="copy" />
+    <DeckReport
+      v-else-if="report"
+      :report="report"
+      :view="view"
+      :hand="hand"
+      @navigate="navigate"
+      @copy="copy"
+      @copy-list="copyList"
+      @view="chooseView"
+      @draw="draw"
+      @compare="compare"
+      @clear-comparison="clearComparison"
+    />
     <template #footer>
       <SiteFooter :notice="RIOT_NOTICE" />
     </template>

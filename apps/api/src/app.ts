@@ -41,7 +41,7 @@ export function createApp({
     .route("/cards/random", createRandomRoutes({ cards: pricedCards, rules }))
     .route("/cards", createCardsRoutes({ cards: pricedCards, priceHistory, rules }))
     .route("/search", createSearchRoutes({ cards: pricedCards, rules }))
-    .route("/decks", createDecksRoutes({ cards: pricedCards, rules }))
+    .route("/decks", createDecksRoutes({ cards: pricedCards, priceHistory, rules }))
     .notFound((c) =>
       c.json(errorBody({ code: "not_found", message: `No route for ${c.req.method} ${c.req.path}` }), 404),
     )

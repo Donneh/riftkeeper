@@ -1,6 +1,14 @@
 import type { Card } from "@riftkeeper/cards";
 import { parseCardText } from "@riftkeeper/ui/card-text";
 import { glyphLabel } from "@riftkeeper/ui/glyph";
+import {
+  DECK_IMAGE_HEIGHT,
+  DECK_IMAGE_WIDTH,
+  type DeckCheck,
+  deckTitle,
+  FORMAT_NAMES,
+  renderDeckImage,
+} from "./deck-image.ts";
 
 interface Service {
   fetch(request: Request): Promise<Response>;
@@ -11,30 +19,24 @@ export interface Env {
   readonly API: Service;
 }
 
+interface Context {
+  waitUntil(promise: Promise<unknown>): void;
+}
+
 interface SearchResponse {
   readonly data: readonly Card[];
   readonly meta: { readonly total: number };
-}
-
-interface DeckCheck {
-  readonly deck: {
-    readonly legends: readonly { readonly card: Card; readonly printing: Card["printings"][number] }[];
-    readonly champion: { readonly card: Card } | null;
-  };
-  readonly formats: readonly {
-    readonly format: string;
-    readonly legal: boolean;
-    readonly problems: readonly unknown[];
-    readonly upcomingBans: readonly unknown[];
-  }[];
-  readonly price: { readonly total: number; readonly currency: string } | null;
 }
 
 interface LinkPreview {
   readonly pageTitle: string;
   readonly title: string;
   readonly description: string;
-  readonly image: { readonly url: string; readonly alt: string } | null;
+  readonly image: {
+    readonly url: string;
+    readonly alt: string;
+    readonly size?: { readonly width: number; readonly height: number };
+  } | null;
   readonly largeImage: boolean;
 }
 
@@ -42,10 +44,15 @@ const SITE_NAME = "Riftkeeper";
 const API_TIMEOUT_MS = 1500;
 const MAX_DESCRIPTION_LENGTH = 300;
 const MAX_LISTED_NAMES = 5;
+const DECK_IMAGE_PATH = "/deck/image.png";
+const DECK_IMAGE_CACHE = "deck-images";
+const DECK_IMAGE_MAX_AGE = 86400;
+const INCOMPLETE_DECK_IMAGE_MAX_AGE = 300;
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, context: Context): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === DECK_IMAGE_PATH) return deckImage(request, url, env.API, context);
     const [page, preview] = await Promise.all([
       env.ASSETS.fetch(request),
       request.method === "GET" ? linkPreview(url, env.API).catch(() => null) : null,
@@ -61,18 +68,60 @@ async function linkPreview(url: URL, api: Service): Promise<LinkPreview | null> 
     const card = await apiJson<{ data: Card }>(api, `/cards/${cardId}`);
     return card && cardPreview(card.data, url.searchParams.get("printing"));
   }
-  const deck = url.pathname === "/deck" ? url.searchParams.get("d")?.trim() : undefined;
+  const deck = /^\/deck\/?$/.test(url.pathname) ? deckCodes(url) : null;
   if (deck) {
-    const partner = url.searchParams.get("p")?.trim();
-    const params = new URLSearchParams({ code: deck, ...(partner ? { partner } : {}) });
-    const check = await apiJson<{ data: DeckCheck }>(api, `/decks/check?${params}`);
-    return check && deckPreview(check.data);
+    const check = await deckCheck(api, deck);
+    return check && deckPreview(check, deckImageUrl(url, deck));
   }
   const query = url.pathname === "/" ? url.searchParams.get("q")?.trim() : undefined;
   if (!query) return null;
   const view = url.searchParams.get("view") === "cards" ? "cards" : "printings";
   const result = await apiJson<SearchResponse>(api, `/search?${new URLSearchParams({ q: query, view })}`);
   return result && searchPreview(query, view, result);
+}
+
+interface DeckCodes {
+  readonly deck: string;
+  readonly partner: string | null;
+}
+
+function deckCodes(url: URL): DeckCodes | null {
+  const deck = url.searchParams.get("d")?.trim();
+  return deck ? { deck, partner: url.searchParams.get("p")?.trim() || null } : null;
+}
+
+async function deckCheck(api: Service, { deck, partner }: DeckCodes): Promise<DeckCheck | null> {
+  const params = new URLSearchParams({ code: deck, ...(partner ? { partner } : {}) });
+  return (await apiJson<{ data: DeckCheck }>(api, `/decks/check?${params}`))?.data ?? null;
+}
+
+function deckImageUrl(url: URL, { deck, partner }: DeckCodes): string {
+  const params = new URLSearchParams({ d: deck, ...(partner ? { p: partner } : {}) });
+  return new URL(`${DECK_IMAGE_PATH}?${params}`, url.origin).href;
+}
+
+async function deckImage(request: Request, url: URL, api: Service, context: Context): Promise<Response> {
+  const codes = deckCodes(url);
+  if (!["GET", "HEAD"].includes(request.method) || !codes) return new Response("Not found", { status: 404 });
+  try {
+    const cache = await caches.open(DECK_IMAGE_CACHE);
+    const cached = await cache.match(request.url);
+    if (cached) return cached;
+    const check = await deckCheck(api, codes);
+    if (!check) return new Response("Deck not found", { status: 404 });
+    const { png, complete } = await renderDeckImage(check);
+    const response = new Response(png, {
+      headers: {
+        "content-type": "image/png",
+        "cache-control": `public, max-age=${complete ? DECK_IMAGE_MAX_AGE : INCOMPLETE_DECK_IMAGE_MAX_AGE}`,
+      },
+    });
+    if (complete) context.waitUntil(cache.put(request.url, response.clone()));
+    return response;
+  } catch (error) {
+    console.error("Rendering the deck image failed", error);
+    return new Response("Deck image unavailable", { status: 502 });
+  }
 }
 
 async function apiJson<T>(api: Service, path: string): Promise<T | null> {
@@ -116,11 +165,8 @@ function searchPreview(query: string, view: "cards" | "printings", { data, meta 
   };
 }
 
-const FORMAT_NAMES: Readonly<Record<string, string>> = { standard: "Standard", "2v2": "2v2" };
-
-function deckPreview({ deck, formats, price }: DeckCheck): LinkPreview {
-  const legend = deck.legends[0];
-  const name = legend ? [legend.card.tags[0], legend.card.name].filter(Boolean).join(", ") : "Deck";
+function deckPreview({ deck, formats, price }: DeckCheck, imageUrl: string): LinkPreview {
+  const name = deckTitle(deck);
   const verdicts = formats.map(({ format, legal, problems, upcomingBans }) => {
     const label = FORMAT_NAMES[format] ?? format;
     if (!legal) return `${label}: not legal (${problems.length} ${problems.length === 1 ? "problem" : "problems"})`;
@@ -134,8 +180,8 @@ function deckPreview({ deck, formats, price }: DeckCheck): LinkPreview {
     pageTitle: `${name} deck · ${SITE_NAME}`,
     title: `${name} deck`,
     description: [verdicts.join(" · "), champion, cost && `TCGplayer ${cost}`].filter(Boolean).join(". "),
-    image: legend ? { url: legend.printing.imageUrl, alt: legend.card.name } : null,
-    largeImage: false,
+    image: { url: imageUrl, alt: `${name} deck`, size: { width: DECK_IMAGE_WIDTH, height: DECK_IMAGE_HEIGHT } },
+    largeImage: true,
   };
 }
 
@@ -165,6 +211,12 @@ function withPreview(page: Response, url: URL, preview: LinkPreview): Response {
     ...(preview.image
       ? ([
           ["og:image", preview.image.url],
+          ...(preview.image.size
+            ? [
+                ["og:image:width", String(preview.image.size.width)],
+                ["og:image:height", String(preview.image.size.height)],
+              ]
+            : []),
           ["og:image:alt", preview.image.alt],
         ] as [string, string][])
       : []),

@@ -4,11 +4,15 @@ import {
   type Deck,
   DeckCodeError,
   deckCode,
+  deckDiff,
   deckErrata,
+  deckListText,
   deckPrice,
+  deckPriceTrend,
   readDeckCode,
   readDeckList,
 } from "@riftkeeper/cards/deck";
+import type { PriceHistory } from "@riftkeeper/cards/price-history";
 import type { PricedCard } from "@riftkeeper/cards/prices";
 import type { RulesSnapshot } from "@riftkeeper/cards/rules";
 import { type Context, Hono } from "hono";
@@ -26,6 +30,7 @@ const CheckParamsSchema = z
     list: z.string().trim().min(1).max(MAX_LIST_LENGTH).optional(),
     partner: z.string().trim().min(1).max(MAX_CODE_LENGTH).optional(),
     partnerList: z.string().trim().min(1).max(MAX_LIST_LENGTH).optional(),
+    compare: z.string().trim().min(1).max(MAX_CODE_LENGTH).optional(),
   })
   .refine(({ code, list }) => (code === undefined) !== (list === undefined), "Pass either a deck code or a list.")
   .refine(
@@ -43,7 +48,15 @@ function unreadable(c: Context, error: unknown, prefix: string) {
   return c.json(errorBody({ code: "invalid_request", message: `${prefix}${error.message}` }), 400);
 }
 
-export function createDecksRoutes({ cards, rules }: { cards: readonly PricedCard[]; rules: RulesSnapshot }) {
+export function createDecksRoutes({
+  cards,
+  priceHistory,
+  rules,
+}: {
+  cards: readonly PricedCard[];
+  priceHistory: PriceHistory;
+  rules: RulesSnapshot;
+}) {
   return new Hono().get(
     "/check",
     zValidator("query", CheckParamsSchema, (result, c) => {
@@ -52,7 +65,7 @@ export function createDecksRoutes({ cards, rules }: { cards: readonly PricedCard
       }
     }),
     (c) => {
-      const { code, list, partner: partnerCode, partnerList } = c.req.valid("query");
+      const { code, list, partner: partnerCode, partnerList, compare } = c.req.valid("query");
       let deck: Deck<PricedCard>;
       let partner: Deck<PricedCard> | null;
       try {
@@ -64,6 +77,12 @@ export function createDecksRoutes({ cards, rules }: { cards: readonly PricedCard
         partner = readDeck(cards, partnerCode, partnerList);
       } catch (error) {
         return unreadable(c, error, "Your partner's deck: ");
+      }
+      let compared: Deck<PricedCard> | null;
+      try {
+        compared = readDeck(cards, compare, undefined);
+      } catch (error) {
+        return unreadable(c, error, "The deck to compare with: ");
       }
       const today = utcToday();
       c.header("Cache-Control", `public, max-age=${CACHE_SECONDS}`);
@@ -77,6 +96,12 @@ export function createDecksRoutes({ cards, rules }: { cards: readonly PricedCard
             partner: partner === null ? null : { deck: partner, code: deckCode(partner) },
             errata: deckErrata(deck, rules),
             price: deckPrice(deck),
+            priceTrend: deckPriceTrend(deck, priceHistory),
+            list: deckListText(deck),
+            comparison:
+              compared === null
+                ? null
+                : { deck: compared, code: deckCode(compared), changes: deckDiff(compared, deck) },
           },
         },
         200,

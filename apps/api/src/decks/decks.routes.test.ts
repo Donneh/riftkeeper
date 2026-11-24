@@ -50,6 +50,8 @@ interface CheckBody {
       readonly upcomingBans: readonly unknown[];
     }[];
     readonly partner: { readonly code: string } | null;
+    readonly list: string;
+    readonly comparison: { readonly changes: readonly unknown[] } | null;
   };
   readonly error: { readonly code: string; readonly message: string };
 }
@@ -65,7 +67,7 @@ describe("GET /decks/check", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("public, max-age=300");
-    expect(body.data.price).toEqual({ total: 3, currency: "USD", unpriced: 1 });
+    expect(body.data.price).toMatchObject({ total: 3, cheapest: 3, currency: "USD", unpriced: 1 });
     expect(body.data.formats.map((verdict) => [verdict.format, verdict.upcomingBans.length])).toEqual([
       ["standard", 0],
       ["2v2", 1],
@@ -88,6 +90,21 @@ describe("GET /decks/check", () => {
 
     const again = await check({ code: body.data.code, partner: body.data.partner?.code ?? "" });
     expect(again.body.data.formats).toEqual(body.data.formats);
+  });
+
+  test("compares with a second deck code and returns the registration list", async () => {
+    const before = await check({ list: "Champion:\n1 Jinx, Rebel" });
+    const { body } = await check({ list: "Champion:\n3 Jinx, Rebel", compare: before.body.data.code });
+
+    expect(body.data.list).toContain("Chosen champion\n1 Jinx, Rebel (OGN-030/298)");
+    expect(body.data.comparison?.changes).toEqual([
+      { section: "Main deck", changes: [{ card: "jinx-rebel", name: "Jinx, Rebel", before: 0, after: 2 }] },
+    ]);
+    expect(before.body.data.comparison).toBeNull();
+
+    const unreadable = await check({ list: "1 Jinx, Rebel", compare: "not-a-code" });
+    expect(unreadable.response.status).toBe(400);
+    expect(unreadable.body.error.message).toStartWith("The deck to compare with: ");
   });
 
   test("names the partner's deck when its code can't be read", async () => {
