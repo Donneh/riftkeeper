@@ -68,8 +68,9 @@ async function linkPreview(url: URL, api: Service): Promise<LinkPreview | null> 
     const card = await apiJson<{ data: Card }>(api, `/cards/${cardId}`);
     return card && cardPreview(card.data, url.searchParams.get("printing"));
   }
-  const deck = /^\/deck\/?$/.test(url.pathname) ? deckCodes(url) : null;
-  if (deck) {
+  if (/^\/deck\/?$/.test(url.pathname)) {
+    const deck = deckCodes(url);
+    if (!deck) return DECK_CHECKER_PREVIEW;
     const check = await deckCheck(api, deck);
     return check && deckPreview(check, deckImageUrl(url, deck));
   }
@@ -164,6 +165,15 @@ function searchPreview(query: string, view: "cards" | "printings", { data, meta 
     largeImage: false,
   };
 }
+
+const DECK_CHECKER_PREVIEW: LinkPreview = {
+  pageTitle: `Riftbound deck checker · ${SITE_NAME}`,
+  title: "Riftbound deck checker",
+  description:
+    "Paste a Riftbound deck code or list to check it for Standard and 2v2, with upcoming bans, errata, the TCGplayer price and its trend, opening-hand odds and a tournament list.",
+  image: null,
+  largeImage: false,
+};
 
 function deckPreview({ deck, formats, price }: DeckCheck, imageUrl: string): LinkPreview {
   const name = deckTitle(deck);

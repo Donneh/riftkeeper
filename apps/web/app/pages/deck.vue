@@ -98,12 +98,21 @@ watch(outcome, (value) => {
 });
 
 const title = computed(() => {
-  if (input.value === null) return "Check a deck";
+  if (input.value === null) return "Riftbound deck checker";
   if (status.value === "pending" || !outcome.value) return "Checking the deck";
   if (outcome.value.kind === "deck") return report.value?.title ?? "Deck";
   return outcome.value.kind === "invalid" ? "Deck could not be read" : "Could not check the deck";
 });
-useHead(() => ({ title: `${title.value} · Riftkeeper` }));
+useHead(() => ({
+  title: `${title.value} · Riftkeeper`,
+  meta: [
+    {
+      name: "description",
+      content:
+        "Paste a Riftbound deck code or list to check it for Standard and 2v2, with upcoming bans, errata, the TCGplayer price and its trend, opening-hand odds and a tournament list.",
+    },
+  ],
+}));
 
 function check({ text, partner }: { text: string; partner: string }) {
   return navigateTo({ query: deckQuery(typedInput(text, partner)) });

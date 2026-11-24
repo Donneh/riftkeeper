@@ -200,11 +200,21 @@ describe("link previews", () => {
     expect(partnerPage.meta("og:image")).toBe("https://riftkeeper.app/deck/image.png?d=CEAAAAA&amp;p=CEBBBBB");
   });
 
+  test("the deck checker without a deck describes itself without asking the API", async () => {
+    for (const path of ["/deck", "/deck/"]) {
+      const { env, apiPaths } = environment();
+      const page = await open(path, env);
+      expect(apiPaths, path).toEqual([]);
+      expect(page.title, path).toBe("Riftbound deck checker · Riftkeeper");
+      expect(page.meta("og:description"), path).toContain("Standard and 2v2");
+      expect(page.meta("og:image"), path).toBeNull();
+    }
+  });
+
   test("pages without a preview, unknown cards and failing API calls serve the page unchanged", async () => {
     for (const [path, api] of [
       ["/", defaultApi],
       ["/?q=%20", defaultApi],
-      ["/deck", defaultApi],
       ["/cards/no-such-card", defaultApi],
       [`/cards/${card.id}`, async () => new Response("", { status: 500 })],
       [`/cards/${card.id}`, async () => Promise.reject(new Error("timeout"))],

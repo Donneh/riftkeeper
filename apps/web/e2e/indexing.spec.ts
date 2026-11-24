@@ -19,7 +19,9 @@ test("retired login links permanently redirect to the public search", async ({ p
   expect(unknown.headers().location).toBeUndefined();
 });
 
-test("crawler discovery files advertise the current homepage, not the retired login", async ({ request }) => {
+test("crawler discovery files advertise the homepage and the deck checker, not the retired login", async ({
+  request,
+}) => {
   const robots = await request.get("/robots.txt");
   expect(robots.status()).toBe(200);
   expect(robots.headers()["content-type"]).toContain("text/plain");
@@ -31,5 +33,8 @@ test("crawler discovery files advertise the current homepage, not the retired lo
   expect(sitemap.headers()["content-type"]).toContain("xml");
   const xml = await sitemap.text();
   expect(xml).toContain('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"');
-  expect([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1])).toEqual(["https://riftkeeper.app/"]);
+  expect([...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1])).toEqual([
+    "https://riftkeeper.app/",
+    "https://riftkeeper.app/deck/",
+  ]);
 });
