@@ -1,5 +1,5 @@
 import type { CardId } from "@riftkeeper/cards";
-import type { Deck, DeckEntry, DeckErrata, DeckPrice, FormatVerdict } from "@riftkeeper/cards/deck";
+import type { Deck, DeckEntry } from "@riftkeeper/cards/deck";
 import type { PricedCard } from "@riftkeeper/cards/prices";
 import type { Format } from "@riftkeeper/cards/rules";
 import type { DeckLine, DeckReportContent, DeckSection } from "@riftkeeper/ui";

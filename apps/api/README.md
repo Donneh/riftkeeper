@@ -18,16 +18,16 @@ The Worker code in `src` must not use Bun APIs. `bun run typecheck` checks `src`
 
 ## Endpoints
 
-| Method | Path                       | Response                                                                 |
-| ------ | -------------------------- | ------------------------------------------------------------------------ |
-| GET    | `/health`                  | `200 { data: { status: "ok", cards: number, version: string \| null } }` |
-| GET    | `/cards`                   | `200 { data: Card[] }`                                                   |
-| GET    | `/cards/random`            | `200 { data: Card \| null, warnings }`, `400` bad query                  |
-| GET    | `/cards/:id`               | `200 { data: Card }`, `400` bad id, `404` no card                        |
-| GET    | `/cards/:id/price-history` | `200 { data: PriceHistory }`, `400` bad id, `404` no card                |
-| GET    | `/cards/:id/rules`         | `200 { data: RulesSnapshot }`, `400` bad id, `404` no card               |
-| GET    | `/search`                  | `200 { data: Card[], meta, warnings, parsed }`, `400` bad parameters     |
-| GET    | `/search/options`          | `200 { data: { domains, types, supertypes, rarities, variants, sets } }` |
+| Method | Path                       | Response                                                                                                 |
+| ------ | -------------------------- | -------------------------------------------------------------------------------------------------------- |
+| GET    | `/health`                  | `200 { data: { status: "ok", cards: number, version: string \| null } }`                                 |
+| GET    | `/cards`                   | `200 { data: Card[] }`                                                                                   |
+| GET    | `/cards/random`            | `200 { data: Card \| null, warnings }`, `400` bad query                                                  |
+| GET    | `/cards/:id`               | `200 { data: Card }`, `400` bad id, `404` no card                                                        |
+| GET    | `/cards/:id/price-history` | `200 { data: PriceHistory }`, `400` bad id, `404` no card                                                |
+| GET    | `/cards/:id/rules`         | `200 { data: RulesSnapshot }`, `400` bad id, `404` no card                                               |
+| GET    | `/search`                  | `200 { data: Card[], meta, warnings, parsed }`, `400` bad parameters                                     |
+| GET    | `/search/options`          | `200 { data: { domains, types, supertypes, rarities, variants, sets } }`                                 |
 | GET    | `/decks/check`             | `200 { data: { deck, code, checkedOn, formats, partner, errata, price } }`, `400` bad or unreadable deck |
 
 Errors use the shape `{ error: { code, message } }`.
