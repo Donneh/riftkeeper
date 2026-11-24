@@ -16,6 +16,20 @@ interface SearchResponse {
   readonly meta: { readonly total: number };
 }
 
+interface DeckCheck {
+  readonly deck: {
+    readonly legends: readonly { readonly card: Card; readonly printing: Card["printings"][number] }[];
+    readonly champion: { readonly card: Card } | null;
+  };
+  readonly formats: readonly {
+    readonly format: string;
+    readonly legal: boolean;
+    readonly problems: readonly unknown[];
+    readonly upcomingBans: readonly unknown[];
+  }[];
+  readonly price: { readonly total: number; readonly currency: string } | null;
+}
+
 interface LinkPreview {
   readonly pageTitle: string;
   readonly title: string;
@@ -46,6 +60,13 @@ async function linkPreview(url: URL, api: Service): Promise<LinkPreview | null> 
   if (cardId !== undefined) {
     const card = await apiJson<{ data: Card }>(api, `/cards/${cardId}`);
     return card && cardPreview(card.data, url.searchParams.get("printing"));
+  }
+  const deck = url.pathname === "/deck" ? url.searchParams.get("d")?.trim() : undefined;
+  if (deck) {
+    const partner = url.searchParams.get("p")?.trim();
+    const params = new URLSearchParams({ code: deck, ...(partner ? { partner } : {}) });
+    const check = await apiJson<{ data: DeckCheck }>(api, `/decks/check?${params}`);
+    return check && deckPreview(check.data);
   }
   const query = url.pathname === "/" ? url.searchParams.get("q")?.trim() : undefined;
   if (!query) return null;
@@ -91,6 +112,29 @@ function searchPreview(query: string, view: "cards" | "printings", { data, meta 
         ? `No ${noun}s match.`
         : `${meta.total.toLocaleString("en")} ${meta.total === 1 ? `${noun} matches` : `${noun}s match`}: ${listed}${more}`,
     image: first && image ? { url: image.imageUrl, alt: first.name } : null,
+    largeImage: false,
+  };
+}
+
+const FORMAT_NAMES: Readonly<Record<string, string>> = { standard: "Standard", "2v2": "2v2" };
+
+function deckPreview({ deck, formats, price }: DeckCheck): LinkPreview {
+  const legend = deck.legends[0];
+  const name = legend ? [legend.card.tags[0], legend.card.name].filter(Boolean).join(", ") : "Deck";
+  const verdicts = formats.map(({ format, legal, problems, upcomingBans }) => {
+    const label = FORMAT_NAMES[format] ?? format;
+    if (!legal) return `${label}: not legal (${problems.length} ${problems.length === 1 ? "problem" : "problems"})`;
+    return upcomingBans.length > 0 ? `${label}: legal, bans coming` : `${label}: legal`;
+  });
+  const champion = deck.champion ? `Champion: ${deck.champion.card.name}` : null;
+  const cost = price
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: price.currency }).format(price.total)
+    : null;
+  return {
+    pageTitle: `${name} deck · ${SITE_NAME}`,
+    title: `${name} deck`,
+    description: [verdicts.join(" · "), champion, cost && `TCGplayer ${cost}`].filter(Boolean).join(". "),
+    image: legend ? { url: legend.printing.imageUrl, alt: legend.card.name } : null,
     largeImage: false,
   };
 }

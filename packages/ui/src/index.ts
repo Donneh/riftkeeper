@@ -29,8 +29,20 @@ export type {
   RulesNote,
 } from "./card-detail.ts";
 export type { CardOrientation, CardSummary } from "./card-summary.ts";
+export { default as DeckForm } from "./DeckForm.vue";
+export { default as DeckReport } from "./DeckReport.vue";
 export { default as Dither } from "./Dither.vue";
 export { default as DomainBackdrop } from "./DomainBackdrop.vue";
+export type {
+  DeckErrataNote,
+  DeckLine,
+  DeckLineStatus,
+  DeckPriceSummary,
+  DeckReportContent,
+  DeckSection,
+  DeckUpcomingBan,
+  DeckVerdict,
+} from "./deck-report.ts";
 export type { DitherColor, DitherPattern } from "./dither.ts";
 export { type Domain, type DomainScope, domainScope } from "./domain.ts";
 export { default as ExampleQueries } from "./ExampleQueries.vue";

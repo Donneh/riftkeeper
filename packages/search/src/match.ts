@@ -1,8 +1,8 @@
 import type { Card, Printing } from "@riftkeeper/cards";
-import type { Format, RulesSnapshot } from "@riftkeeper/cards/rules";
+import { marketPrice } from "@riftkeeper/cards/prices";
+import { isBanned, type RulesSnapshot } from "@riftkeeper/cards/rules";
 import type { SearchNode } from "./ast.ts";
 import type { ComparisonOperator, Filter, FilterField, FilterOf } from "./filter.ts";
-import { marketPrice } from "./price.ts";
 
 export interface SearchContext {
   readonly rules: RulesSnapshot;
@@ -50,10 +50,6 @@ function hasKeyword(source: string | null, value: string): boolean {
   });
 }
 
-function isBanned(card: Card, format: Format, { rules, today }: SearchContext): boolean {
-  return rules.bans.some((ban) => ban.card === card.id && ban.format === format && ban.effective <= today);
-}
-
 const FILTER_MATCHERS: FilterMatchers = {
   cost: (filter, card) => compare(card.energyCost, filter.comparison.operator, filter.comparison.value),
   power: (filter, card) => compare(card.powerCost, filter.comparison.operator, filter.comparison.value),
@@ -69,8 +65,9 @@ const FILTER_MATCHERS: FilterMatchers = {
   supertype: (filter, card) => card.supertype === filter.value,
   rarity: (filter, _card, printing) => printing.rarity === filter.value,
   variant: (filter, _card, printing) => printing.variant === filter.value,
-  format: (filter, card, _printing, context) => filter.value === "sealed" || !isBanned(card, filter.value, context),
-  banned: (filter, card, _printing, context) => isBanned(card, filter.value, context),
+  format: (filter, card, _printing, context) =>
+    filter.value === "sealed" || !isBanned(context.rules, card.id, filter.value, context.today),
+  banned: (filter, card, _printing, { rules, today }) => isBanned(rules, card.id, filter.value, today),
   is: (_filter, card, _printing, { rules }) => rules.errata.some((entry) => entry.card === card.id),
   tag: (filter, card) => hasTag(card, filter.text),
   set: (filter, _card, printing) =>

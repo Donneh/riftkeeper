@@ -14,6 +14,7 @@
     "worker",
     "app/utils/card-detail.ts",
     "app/utils/card-images.ts",
+    "app/utils/deck-url.ts",
     "app/utils/filter-chips.ts",
     "app/utils/search-state.ts",
     "app/utils/search-view.ts",

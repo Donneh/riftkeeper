@@ -20,6 +20,14 @@ const card = makeCard({
   ],
 });
 
+const legend = makeCard({
+  id: "loose-cannon",
+  name: "Loose Cannon",
+  type: "legend",
+  tags: ["Jinx"],
+  printings: [makePrinting({ id: "ogn-251-298", imageUrl: "https://cdn.example.com/legend.png" })],
+});
+
 function environment({
   api = defaultApi,
   assets = shellAssets,
@@ -48,6 +56,21 @@ async function shellAssets() {
 async function defaultApi(request: Request) {
   const url = new URL(request.url);
   if (url.pathname === `/cards/${card.id}`) return Response.json({ data: card });
+  if (url.pathname === "/decks/check") {
+    return Response.json({
+      data: {
+        deck: {
+          legends: [{ card: legend, printing: legend.printings[0] }],
+          champion: { card },
+        },
+        formats: [
+          { format: "standard", legal: true, problems: [], upcomingBans: [{}] },
+          { format: "2v2", legal: false, problems: [{}, {}], upcomingBans: [] },
+        ],
+        price: { total: 261.49, currency: "USD" },
+      },
+    });
+  }
   if (url.pathname === "/search") {
     const total = url.searchParams.get("q") === "nothing" ? 0 : 41;
     return Response.json({ data: total ? [card, makeCard({ id: "other", name: "Other" })] : [], meta: { total } });
@@ -103,10 +126,27 @@ describe("link previews", () => {
     expect(empty.meta("og:image")).toBeNull();
   });
 
+  test("a deck link names the legend and gives the verdict per format and the price", async () => {
+    const { env, apiPaths } = environment();
+    const page = await open("/deck?d=CEAAAAA", env);
+
+    expect(apiPaths).toEqual(["/decks/check?code=CEAAAAA"]);
+    expect(page.title).toBe("Jinx, Loose Cannon deck · Riftkeeper");
+    expect(page.meta("og:description")).toBe(
+      "Standard: legal, bans coming · 2v2: not legal (2 problems). Champion: Jinx. TCGplayer $261.49",
+    );
+    expect(page.meta("og:image")).toBe("https://cdn.example.com/legend.png");
+
+    const withPartner = environment();
+    await open("/deck?d=CEAAAAA&p=CEBBBBB", withPartner.env);
+    expect(withPartner.apiPaths).toEqual(["/decks/check?code=CEAAAAA&partner=CEBBBBB"]);
+  });
+
   test("pages without a preview, unknown cards and failing API calls serve the page unchanged", async () => {
     for (const [path, api] of [
       ["/", defaultApi],
       ["/?q=%20", defaultApi],
+      ["/deck", defaultApi],
       ["/cards/no-such-card", defaultApi],
       [`/cards/${card.id}`, async () => new Response("", { status: 500 })],
       [`/cards/${card.id}`, async () => Promise.reject(new Error("timeout"))],

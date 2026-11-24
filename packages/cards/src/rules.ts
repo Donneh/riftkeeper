@@ -70,3 +70,7 @@ export function rulesOf(snapshot: RulesSnapshot, cardId: CardId): RulesSnapshot 
   const used = new Set([...bans, ...errata, ...rulings].map((entry) => entry.source));
   return { sources: snapshot.sources.filter((source) => used.has(source.url)), bans, errata, rulings };
 }
+
+export function isBanned(snapshot: RulesSnapshot, cardId: CardId, format: Format, today: string): boolean {
+  return snapshot.bans.some((ban) => ban.card === cardId && ban.format === format && ban.effective <= today);
+}

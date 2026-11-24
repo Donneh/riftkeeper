@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createCardsRoutes } from "./cards/cards.routes.ts";
 import { createRandomRoutes } from "./cards/random.routes.ts";
+import { createDecksRoutes } from "./decks/decks.routes.ts";
 import { errorBody } from "./http/errors.ts";
 import { createSearchRoutes } from "./search/search.routes.ts";
 
@@ -40,6 +41,7 @@ export function createApp({
     .route("/cards/random", createRandomRoutes({ cards: pricedCards, rules }))
     .route("/cards", createCardsRoutes({ cards: pricedCards, priceHistory, rules }))
     .route("/search", createSearchRoutes({ cards: pricedCards, rules }))
+    .route("/decks", createDecksRoutes({ cards: pricedCards, rules }))
     .notFound((c) =>
       c.json(errorBody({ code: "not_found", message: `No route for ${c.req.method} ${c.req.path}` }), 404),
     )

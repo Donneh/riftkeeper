@@ -338,6 +338,18 @@ onBeforeUnmount(() => window.removeEventListener("keydown", focusOnSlash));
     max-width: none;
   }
 
+  .inner {
+    gap: var(--rk-space-2);
+  }
+
+  .links {
+    gap: 0;
+  }
+
+  .link {
+    padding: 0 var(--rk-space-1);
+  }
+
   .open-search {
     display: inline-flex;
   }

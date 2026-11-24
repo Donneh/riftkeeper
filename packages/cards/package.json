@@ -4,6 +4,7 @@
   "private": true,
   "exports": {
     ".": "./src/card.ts",
+    "./deck": "./src/deck.ts",
     "./snapshot": "./src/card-snapshot.ts",
     "./prices": "./src/price.ts",
     "./price-history": "./src/price-history.ts",
@@ -16,6 +17,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@piltoverarchive/riftbound-deck-codes": "1.5.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
