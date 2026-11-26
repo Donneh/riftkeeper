@@ -46,6 +46,45 @@ export async function searchCards(apiBase: string, state: SearchState, page = 1)
   }
 }
 
+export type CardPageOutcome =
+  | {
+      readonly kind: "page";
+      readonly cards: readonly PricedCard[];
+      readonly total: number;
+      readonly hasMore: boolean;
+      readonly warnings: readonly SearchWarning[];
+    }
+  | { readonly kind: "error"; readonly message: string };
+
+export async function fetchCardPage(apiBase: string, query: string, page = 1): Promise<CardPageOutcome> {
+  try {
+    const response = await $fetch<SearchResponse>("/search", {
+      baseURL: apiBase,
+      query: { q: query, sort: "cost", page, view: "cards" },
+    });
+    rememberCards(response.data);
+    return {
+      kind: "page",
+      cards: response.data,
+      total: response.meta.total,
+      hasMore: response.meta.page * response.meta.pageSize < response.meta.total,
+      warnings: response.warnings,
+    };
+  } catch (error) {
+    return { kind: "error", message: apiErrorMessage(error) ?? UNREACHABLE_MESSAGE };
+  }
+}
+
+export async function fetchAllCards(apiBase: string, query: string): Promise<readonly PricedCard[] | null> {
+  const cards: PricedCard[] = [];
+  for (let page = 1; ; page++) {
+    const outcome = await fetchCardPage(apiBase, query, page);
+    if (outcome.kind === "error") return null;
+    cards.push(...outcome.cards);
+    if (!outcome.hasMore) return cards;
+  }
+}
+
 export async function fetchCard(apiBase: string, id: string): Promise<CardOutcome> {
   try {
     const response = await $fetch<{ data: PricedCard }>(`/cards/${encodeURIComponent(id)}`, { baseURL: apiBase });
