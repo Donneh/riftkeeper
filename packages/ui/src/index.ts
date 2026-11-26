@@ -1,5 +1,7 @@
 export { default as AppShell } from "./AppShell.vue";
 export { default as BackLink } from "./BackLink.vue";
+export { default as BuilderSearch } from "./BuilderSearch.vue";
+export { default as BuilderStats } from "./BuilderStats.vue";
 export { default as CardCredits } from "./CardCredits.vue";
 export { default as CardDetail } from "./CardDetail.vue";
 export { default as CardDetailSkeleton } from "./CardDetailSkeleton.vue";
@@ -7,6 +9,7 @@ export { default as CardGrid } from "./CardGrid.vue";
 export { default as CardImage } from "./CardImage.vue";
 export { default as CardInfo } from "./CardInfo.vue";
 export { default as CardLegality } from "./CardLegality.vue";
+export { default as CardPicker } from "./CardPicker.vue";
 export { default as CardPricing } from "./CardPricing.vue";
 export { default as CardPrintingsPanel } from "./CardPrintingsPanel.vue";
 export { default as CardRulesNotes } from "./CardRulesNotes.vue";
@@ -29,11 +32,31 @@ export type {
   RulesNote,
 } from "./card-detail.ts";
 export type { CardOrientation, CardSummary } from "./card-summary.ts";
+export { default as DeckBuilderExtras } from "./DeckBuilderExtras.vue";
+export { default as DeckBuilderHeader } from "./DeckBuilderHeader.vue";
+export { default as DeckBuilderLayout } from "./DeckBuilderLayout.vue";
 export { default as DeckCards } from "./DeckCards.vue";
 export { default as DeckForm } from "./DeckForm.vue";
+export { default as DeckPiles } from "./DeckPiles.vue";
 export { default as DeckReport } from "./DeckReport.vue";
 export { default as Dither } from "./Dither.vue";
 export { default as DomainBackdrop } from "./DomainBackdrop.vue";
+export {
+  BUILDER_SCOPES,
+  type BuilderBar,
+  type BuilderCard,
+  type BuilderLegality,
+  type BuilderResult,
+  type BuilderRunes,
+  type BuilderScope,
+  type BuilderStatsContent,
+  PILE_GROUPINGS,
+  type PickerCard,
+  type PileCard,
+  type PileGroup,
+  type PileGrouping,
+  type SavedDeckSummary,
+} from "./deck-builder.ts";
 export {
   DECK_VIEWS,
   type DeckChangeLine,
@@ -68,6 +91,7 @@ export { default as PrintingList } from "./PrintingList.vue";
 export type { QuerySuggestion } from "./query-suggestion.ts";
 export { default as ResultSummary } from "./ResultSummary.vue";
 export { default as RiftboundGlyph } from "./RiftboundGlyph.vue";
+export { default as SavedDecks } from "./SavedDecks.vue";
 export { default as SearchBar } from "./SearchBar.vue";
 export { default as SearchViewControl } from "./SearchViewControl.vue";
 export { default as SiteFooter } from "./SiteFooter.vue";
@@ -76,6 +100,7 @@ export { default as SortControl } from "./SortControl.vue";
 export { default as StatusMessage } from "./StatusMessage.vue";
 export type { SortDirection, SortOption, SortSelection } from "./sort-option.ts";
 export { default as ThemeButton } from "./ThemeButton.vue";
+export { default as ToggleGroup } from "./ToggleGroup.vue";
 export { default as Toolbar } from "./Toolbar.vue";
 export { applyTheme, isThemePreference, THEME_PREFERENCES, type ThemePreference } from "./theme.ts";
 export { default as WarningList } from "./WarningList.vue";

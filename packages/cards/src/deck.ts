@@ -3,14 +3,17 @@ import type { Card, CardId, Domain, Printing } from "./card.ts";
 import { marketPrice, type PricedCard, type PriceSnapshot } from "./price.ts";
 import type { PriceHistory } from "./price-history.ts";
 import { type Errata, type Format, isBanned, type RulesSnapshot } from "./rules.ts";
-import { FORMATS } from "./values.ts";
+import {
+  BATTLEFIELD_COUNT,
+  FORMATS,
+  MAIN_DECK_SIZE,
+  MAX_COPIES,
+  MAX_SIDEBOARD_SIZE,
+  MAX_SIGNATURE_CARDS,
+  RUNE_DECK_SIZE,
+} from "./values.ts";
 
-export const MAIN_DECK_SIZE = 40;
-export const RUNE_DECK_SIZE = 12;
-export const BATTLEFIELD_COUNT = 3;
-export const MAX_SIDEBOARD_SIZE = 10;
-export const MAX_COPIES = 3;
-export const MAX_SIGNATURE_CARDS = 3;
+export { BATTLEFIELD_COUNT, MAIN_DECK_SIZE, MAX_COPIES, MAX_SIDEBOARD_SIZE, MAX_SIGNATURE_CARDS, RUNE_DECK_SIZE };
 
 export interface DeckEntry<C extends Card = Card> {
   readonly card: C;
